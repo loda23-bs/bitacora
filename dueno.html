@@ -10,7 +10,7 @@
 :root{
   --bg:#EDF0F1; --surface:#FFFFFF; --ink:#15191C; --muted:#5A646B; --line:#D2D8DC;
   --accent:#C2410C; --accent-ink:#FFFFFF; --accent-soft:#FBE7DB; --ok:#1F7A4D; --danger:#B42318;
-  --plate-bg:#FBFBF8; --plate-ink:#111417; --plate-band:#7B2350; --wa:#1E8A4C; --wa-ink:#FFFFFF;
+  --plate-bg:#FBFBF8; --plate-ink:#111417; --plate-band:#7B2350; --wa:#1E8A4C; --wa-ink:#FFFFFF; --bar:#C2410C;
   --f-display:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
   --f-body:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
@@ -19,8 +19,9 @@
 @media (prefers-color-scheme: dark){:root{
   --bg:#0F1214; --surface:#181C1F; --ink:#E8ECEE; --muted:#9AA4AB; --line:#2B3236;
   --accent:#F0793A; --accent-ink:#1B0D05; --accent-soft:#3A2216; --ok:#4CC38A; --danger:#F97066;
-  --wa:#3CC97A; --wa-ink:#05200F; color-scheme:dark}}
+  --wa:#3CC97A; --wa-ink:#05200F; --bar:#DB6A33; color-scheme:dark}}
 *,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
@@ -102,6 +103,28 @@ dl.kv dd{margin:0;min-width:0;overflow-wrap:anywhere;white-space:pre-line}
 .due{align-self:flex-start;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
 .due.ok{color:var(--ok)} .due.soon{color:var(--accent)} .due.late{color:var(--danger)}
 .wa-box{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.cost{display:flex;flex-direction:column;gap:5px;border-top:1px dashed var(--line);padding-top:10px}
+.cost-title{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.cost-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:14px}
+.cost-row>span:first-child{min-width:0;overflow-wrap:anywhere}
+.cost-row .price{white-space:nowrap}
+.cost-sub{color:var(--muted);border-top:1px solid var(--line);padding-top:5px}
+.cost-sub+.cost-sub{border-top:0;padding-top:0}
+.cost-final{font-weight:700;font-size:16px;border-top:2px solid var(--ink);padding-top:6px;margin-top:2px}
+.cost-more{margin-top:4px}
+.cost-more summary{cursor:pointer;color:var(--accent);font-size:13.5px;font-weight:600;padding:4px 0}
+.cost-more .cost{margin-top:6px}
+.parts{display:flex;flex-direction:column;gap:8px}
+.part-row{display:grid;grid-template-columns:minmax(0,1fr) 112px 40px;gap:8px;align-items:center}
+.part-del{font:inherit;font-size:20px;line-height:1;height:40px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.totals{display:flex;flex-direction:column;gap:5px;padding:12px 14px;border-radius:10px;background:var(--accent-soft)}
+.totals .cost-row{font-size:15px}
+.totals .cost-final{font-size:18px}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.opt input{width:20px;height:20px;flex:none;margin-top:2px}
+.opt small{display:block;color:var(--muted);font-size:13px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+legend{padding:0;margin-bottom:4px}
 .foot{font-size:12.5px;color:var(--muted);text-align:center;padding-top:10px}
 @media (prefers-reduced-motion: no-preference){.sticker{animation:pop .35s ease-out both}@keyframes pop{from{transform:translateY(6px)}to{transform:none}}}
 .car-list{display:flex;flex-direction:column;border-top:1px solid var(--line)}
@@ -121,13 +144,37 @@ dl.kv dd{margin:0;min-width:0;overflow-wrap:anywhere;white-space:pre-line}
 .check input{width:20px;height:20px;flex:none}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:2px solid var(--ink);
   padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));padding-bottom:env(safe-area-inset-bottom,0px)}
-.tabbar-in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
-.tab{font:inherit;font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 8px;border:none;background:transparent;color:var(--muted);cursor:pointer;position:relative}
+.tabbar-in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
+.tab{font:inherit;font-size:10.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 8px;border:none;background:transparent;color:var(--muted);cursor:pointer;position:relative}
 .tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tab[aria-current="true"]{color:var(--ink)}
 .tab[aria-current="true"]::after{content:"";position:absolute;top:-2px;left:22%;right:22%;height:3px;background:var(--accent)}
 .tab.plus{color:var(--accent)}
 .tab .badge{position:absolute;top:4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--danger);color:var(--surface);font-size:10.5px;line-height:17px;text-align:center}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;align-self:flex-start}
+.seg button{font:inherit;font-size:14px;font-weight:600;padding:8px 14px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.gan-hero{display:flex;flex-direction:column;gap:4px}
+.gan-big{font-family:var(--f-display);font-weight:700;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.gan-sub{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13.5px;color:var(--muted)}
+.gan-sub b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.gchart{position:relative;height:190px;padding:18px 0 26px 46px}
+.gchart-grid{position:absolute;left:46px;right:0;border-top:1px dashed var(--line)}
+.gchart-grid span{position:absolute;right:calc(100% + 6px);top:-8px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.gchart-base{position:absolute;left:46px;right:0;bottom:26px;border-top:1px solid var(--muted)}
+.gchart-cols{position:relative;height:100%;display:flex;gap:2px}
+.gbar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;border:0;background:transparent;padding:0;cursor:pointer;color:var(--muted);font:inherit}
+.gbar-fill{width:min(24px,70%);background:var(--bar);border-radius:4px 4px 0 0;opacity:.42;min-height:0}
+.gbar[aria-pressed="true"] .gbar-fill{opacity:1}
+.gbar:hover .gbar-fill,.gbar:focus-visible .gbar-fill{opacity:.8}
+.gbar-x{position:absolute;bottom:-22px;font-size:11px;white-space:nowrap}
+.gbar[aria-pressed="true"] .gbar-x{color:var(--ink);font-weight:700}
+.gbar-v{font-size:11px;font-weight:700;color:var(--ink);margin-bottom:3px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.gan-row{font:inherit;color:inherit;text-align:left;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 4px;border:0;border-bottom:1px solid var(--line);background:transparent;cursor:pointer;width:100%}
+.gan-row .car-row-main span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gan-amt{text-align:right;display:flex;flex-direction:column}
+.gan-amt b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.gan-amt small{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 body.has-tabs{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 </style>
 </head>
@@ -179,33 +226,51 @@ function nextHtml(s){
     (n!==null?'<span class="due '+dueClass(n)+'">'+dueTxt(n)+'</span>':'')+
     (s.prox_fecha&&s.prox_km?'<p class="hint">Lo que ocurra primero.</p>':'')+'</section>';
 }
-/* priv = {precio, cliente} solo en el panel del dueño */
-function stickerHtml(s,priv){
-  return '<section class="sticker" aria-label="Último servicio"><div class="sticker-head"><span>Último servicio</span><span class="mono">'+folio(s.folio)+'</span></div>'+
+function partesOf(s){return Array.isArray(s.partes)?s.partes.filter(p=>p&&(p.nombre||p.precio!=null)):[];}
+function hasCost(s){return s.precio!=null||s.precio_refacciones!=null||s.precio_mano_obra!=null;}
+function hasDesglose(s){return partesOf(s).length>0||Number(s.precio_refacciones)>0||Number(s.precio_mano_obra)>0;}
+/* modo: 'desglose' (cada refacción, subtotales y total), 'total' (solo total) o 'nada'.
+   Un apartado sin datos (sin refacciones o sin mano de obra) no se muestra. */
+function costHtml(s,modo){
+  if(modo==='nada'||!hasCost(s))return '';
+  const fin='<div class="cost-row cost-final"><span>Total</span><span class="price">'+money(s.precio)+'</span></div>';
+  if(modo!=='desglose'||!hasDesglose(s))return '<div class="cost">'+fin+'</div>';
+  const partes=partesOf(s),hasRef=partes.length>0||Number(s.precio_refacciones)>0,hasMo=Number(s.precio_mano_obra)>0;
+  return '<div class="cost">'+
+    (hasRef?'<p class="cost-title">Refacciones</p>'+partes.map(p=>'<div class="cost-row"><span>'+esc(p.nombre||'Refacción')+'</span><span class="price">'+money(p.precio)+'</span></div>').join('')+
+      '<div class="cost-row cost-sub"><span>Total refacciones</span><span class="price">'+money(s.precio_refacciones||0)+'</span></div>':'')+
+    (hasMo?'<div class="cost-row cost-sub"><span>Mano de obra</span><span class="price">'+money(s.precio_mano_obra)+'</span></div>':'')+fin+'</div>';
+}
+/* o = {modo, owner}: owner agrega el nombre del cliente (solo panel del dueño) */
+function stickerHtml(s,o){
+  const showParts=o.modo==='desglose'&&partesOf(s).length>0;
+  return '<section class="sticker" aria-label="'+(o.title||'Último servicio')+'"><div class="sticker-head"><span>'+(o.title||'Último servicio')+'</span><span class="mono">'+folio(s.folio)+'</span></div>'+
     '<div class="sticker-body"><div><div class="sticker-date">'+fdate(s.fecha)+'</div><div class="sticker-ago">'+ago(s.fecha)+'</div></div>'+
     '<p class="sticker-what">'+esc(s.servicio)+'</p><dl class="kv">'+
     (s.km!=null?'<dt>Kilometraje</dt><dd class="price">'+kmf(s.km)+'</dd>':'')+
     (s.aceite?'<dt>Aceite</dt><dd>'+esc(s.aceite)+'</dd>':'')+
     (s.filtros?'<dt>Filtros</dt><dd>'+esc(s.filtros)+'</dd>':'')+
-    (s.refacciones?'<dt>Refacciones</dt><dd>'+esc(s.refacciones)+'</dd>':'')+
+    (s.refacciones&&!showParts?'<dt>Refacciones</dt><dd>'+esc(s.refacciones)+'</dd>':'')+
     (s.mecanico?'<dt>Mecánico</dt><dd>'+esc(s.mecanico)+'</dd>':'')+
-    (priv?'<dt>Precio</dt><dd class="price">'+money(priv.precio)+'</dd><dt>Cliente</dt><dd>'+esc(priv.cliente||'—')+'</dd>':'')+
-    '</dl></div></section>';
+    (o.owner?'<dt>Cliente</dt><dd>'+esc(s.cliente||'—')+'</dd>':'')+
+    '</dl>'+costHtml(s,o.modo)+'</div></section>';
 }
-/* extra(s) agrega precio y botones en el panel del dueño */
-function histHtml(list,owner,extra){
+/* extra(s) agrega botones en el panel del dueño */
+function histHtml(list,o,extra){
   if(!list.length)return '';
   return '<section class="stack"><h2>Historial</h2><ol class="hist">'+list.map(s=>{
-    const meta=[];
+    const showParts=o.modo==='desglose'&&partesOf(s).length>0,meta=[];
     if(s.km!=null)meta.push('Kilometraje: '+kmf(s.km));
     if(s.aceite)meta.push('Aceite: '+s.aceite);
     if(s.filtros)meta.push('Filtros: '+s.filtros);
-    if(s.refacciones)meta.push('Refacciones: '+s.refacciones);
+    if(s.refacciones&&!showParts)meta.push('Refacciones: '+s.refacciones);
     if(s.mecanico)meta.push('Mecánico: '+s.mecanico);
-    if(owner&&s.cliente)meta.push('Cliente: '+s.cliente);
+    if(o.owner&&s.cliente)meta.push('Cliente: '+s.cliente);
     return '<li class="hist-item"><div class="hist-top"><span class="hist-date">'+fdate(s.fecha)+'</span><span class="mono muted">'+folio(s.folio)+'</span>'+
-      (owner?'<span class="price">'+money(s.precio)+'</span>':'')+'</div><p class="hist-what">'+esc(s.servicio)+'</p>'+
-      (meta.length?'<p class="hist-meta">'+esc(meta.join('\n'))+'</p>':'')+(extra?extra(s):'')+'</li>';
+      (o.modo!=='nada'&&s.precio!=null?'<span class="price">'+money(s.precio)+'</span>':'')+'</div><p class="hist-what">'+esc(s.servicio)+'</p>'+
+      (meta.length?'<p class="hist-meta">'+esc(meta.join('\n'))+'</p>':'')+
+      (o.modo==='desglose'&&hasDesglose(s)?'<details class="cost-more"><summary>Ver desglose</summary>'+costHtml(s,'desglose')+'</details>':'')+
+      (extra?extra(s):'')+'</li>';
   }).join('')+'</ol></section>';
 }
 
@@ -224,6 +289,7 @@ function dueList(){return coches.map(c=>{const l=lastOf(c.id);return l&&l.prox_f
 function errText(e){
   if(!e)return 'Algo salió mal. Intenta de nuevo.';
   if(e.code==='23505')return 'Ya hay un coche con esas placas.';
+  if(/precio_refacciones|precio_mano_obra|partes|mostrar_precios/.test(String(e.message||'')))return 'Falta actualizar la base de datos: corre en Supabase el script nuevo de precios.';
   const m=String(e.message||'');
   if(/Invalid login credentials/i.test(m))return 'Correo o contraseña incorrectos.';
   if(/Email not confirmed/i.test(m))return 'Confirma tu correo con el enlace que te enviamos y vuelve a entrar.';
@@ -293,15 +359,16 @@ const ICONS={
   due:'<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M12 13v3l2 1"/></svg>',
   plus:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>',
   labels:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></svg>',
+  gan:'<svg viewBox="0 0 24 24"><path d="M4 20h16M7 16v-4M12 16V7M17 16v-6"/></svg>',
   settings:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg>'};
 function header(){
   return '<header class="top"><div class="top-row"><div><p class="eyebrow">Panel del taller</p><h1 class="shop-name">'+esc(taller?taller.nombre:'Bitácora QR')+'</h1></div>'+
     (session?'<button class="btn small" data-act="logout">Salir</button>':'')+'</div></header>';
 }
 function tabbar(){
-  const v=ui.view,cur=k=>(k===v||(k==='home'&&['car','svcForm'].includes(v))||(k==='home'&&v==='carForm'&&ui.edit)||(k==='plus'&&v==='carForm'&&!ui.edit))?'true':'false';
+  const v=ui.view,cur=k=>(k===v||(k==='gan'&&v==='svcDetail')||(k==='home'&&['car','svcForm'].includes(v))||(k==='home'&&v==='carForm'&&ui.edit)||(k==='plus'&&v==='carForm'&&!ui.edit))?'true':'false';
   const nDue=dueList().filter(x=>x.n<=14).length;
-  const t=[['home','Coches','go'],['due','Por vencer','go'],['plus','Nuevo coche','newCar'],['labels','Etiquetas','go'],['settings','Ajustes','go']];
+  const t=[['home','Coches','go'],['gan','Ganancias','go'],['due','Por vencer','go'],['plus','Nuevo','newCar'],['labels','Etiquetas','go'],['settings','Ajustes','go']];
   return '<nav class="tabbar" aria-label="Menú del taller"><div class="tabbar-in">'+t.map(x=>
     '<button class="tab'+(x[0]==='plus'?' plus':'')+'" data-act="'+x[2]+'" data-v="'+x[0]+'" aria-current="'+cur(x[0])+'">'+ICONS[x[0]]+
     (x[0]==='due'&&nDue?'<span class="badge">'+nDue+'</span>':'')+'<span>'+x[1]+'</span></button>').join('')+'</div></nav>';
@@ -360,7 +427,7 @@ function carView(){
     '<div class="row"><button class="btn primary" data-act="newSvc">+ Registrar servicio</button><button class="btn" data-act="label" data-id="'+car.id+'">Descargar etiqueta QR</button></div>'+
     '<div class="row"><a class="btn small" href="'+esc(carUrl(car))+'" target="_blank" rel="noopener">Ver lo que ve el cliente</a><button class="btn small" data-act="editCar">Editar coche</button><button class="btn small danger" data-act="delCar">Borrar coche</button></div>';
   if(list.length)h+='<div class="stats"><div class="stat"><span class="eyebrow">Servicios</span><b>'+list.length+'</b></div><div class="stat"><span class="eyebrow">Total cobrado</span><b class="price">'+money(total)+'</b></div><div class="stat"><span class="eyebrow">Desde</span><b>'+fdate(list[list.length-1].fecha)+'</b></div></div>';
-  h+=list.length?nextHtml(list[0])+stickerHtml(list[0],list[0])+histHtml(list,true,s=>'<div class="row"><button class="btn small" data-act="editSvc" data-id="'+s.id+'">Editar</button><button class="btn small" data-act="delSvc" data-id="'+s.id+'">Borrar</button></div>')
+  h+=list.length?nextHtml(list[0])+stickerHtml(list[0],{modo:'desglose',owner:true})+histHtml(list,{modo:'desglose',owner:true},s=>'<div class="row"><button class="btn small" data-act="editSvc" data-id="'+s.id+'">Editar</button><button class="btn small" data-act="delSvc" data-id="'+s.id+'">Borrar</button></div>')
     :'<p class="note">Este coche aún no tiene servicios. Registra el primero.</p>';
   return h;
 }
@@ -373,6 +440,39 @@ function carForm(){
     '<p class="private">Solo taller</p><div class="grid2">'+f('c-cli','cliente','Cliente')+f('c-tel','telefono','Teléfono del cliente',' inputmode="tel"')+'</div>'+
     errHtml()+submit('Guardar coche')+'</form>';
 }
+const PARTES_RAPIDAS=['Aceite','Filtro de aceite','Filtro de aire','Filtro de gasolina','Bujías','Balatas'];
+const r2=n=>Math.round(n*100)/100;
+function legacyOnly(s){return !!s&&s.precio!=null&&!hasDesglose(s);}
+function partRow(p){p=p||{};
+  return '<div class="part-row"><input name="part_nombre" aria-label="Refacción" placeholder="Ej. Filtro de aceite" value="'+esc(p.nombre||'')+'">'+
+    '<input name="part_precio" aria-label="Precio de la refacción" type="number" min="0" step="0.01" inputmode="decimal" placeholder="$0.00" value="'+esc(p.precio==null?'':p.precio)+'">'+
+    '<button type="button" class="part-del" data-act="delPart" aria-label="Quitar refacción">×</button></div>';}
+function initialParts(s){
+  if(!s)return [{}];
+  const ps=partesOf(s);if(ps.length)return ps;
+  if(s.precio_refacciones!=null)return [{nombre:s.refacciones||'Refacciones',precio:s.precio_refacciones}];
+  const fromText=String(s.refacciones||'').split(/,|\n/).map(x=>x.trim()).filter(Boolean).map(n=>({nombre:n}));
+  return fromText.length?fromText:[{}];
+}
+function readParts(){return [...document.querySelectorAll('#parts .part-row')].map(r=>{
+  const n=r.querySelector('[name=part_nombre]').value.trim(),p=r.querySelector('[name=part_precio]').value.trim();
+  return {nombre:n,precio:p===''?null:r2(Number(p))};}).filter(p=>p.nombre||p.precio!=null);}
+function calcTotals(partes,mo,fallback){
+  const conPrecio=partes.filter(p=>p.precio!=null),ref=conPrecio.length?r2(conPrecio.reduce((t,p)=>t+p.precio,0)):null;
+  if(ref==null&&mo==null)return {ref:null,mo:null,tot:fallback==null?null:fallback};
+  return {ref,mo,tot:r2((ref||0)+(mo||0))};
+}
+function currentSvc(){return ui.edit?servicios.find(x=>x.id===ui.edit):null;}
+function updateTotals(){
+  const el=document.getElementById('t-tot');if(!el)return;
+  const mv=document.getElementById('s-pmo').value.trim(),s=currentSvc();
+  const t=calcTotals(readParts(),mv===''?null:r2(Number(mv)),legacyOnly(s)?s.precio:null);
+  document.getElementById('t-ref').textContent=money(t.ref||0);
+  document.getElementById('t-mo').textContent=money(t.mo||0);
+  el.textContent=money(t.tot||0);
+  document.getElementById('r-ref').hidden=!(t.ref>0);document.getElementById('r-mo').hidden=!(t.mo>0);
+}
+const VISTA_CLIENTE={desglose:'el desglose completo y el total',total:'solo el total final',nada:'ningún precio'};
 function svcForm(){
   const car=carOf(ui.car),s=ui.edit?servicios.find(x=>x.id===ui.edit):null;
   const v=k=>esc(s?(s[k]==null?'':s[k]):'');
@@ -384,14 +484,20 @@ function svcForm(){
     '<textarea id="s-serv" name="servicio" required>'+v('servicio')+'</textarea></div>'+
     '<div class="grid2"><div class="field"><label for="s-aceite">Aceite</label><input id="s-aceite" name="aceite" placeholder="Ej. Sintético 5W-30 · 4 L" value="'+v('aceite')+'"></div>'+
     '<div class="field"><label for="s-filt">Filtros</label><input id="s-filt" name="filtros" placeholder="Ej. Aceite y aire" value="'+v('filtros')+'"></div></div>'+
-    '<div class="field"><label for="s-ref">Otras refacciones</label><textarea id="s-ref" name="refacciones">'+v('refacciones')+'</textarea></div>'+
     '<div class="field"><label for="s-mec">Mecánico</label><input id="s-mec" name="mecanico" list="mecs" value="'+v('mecanico')+'"><datalist id="mecs">'+mecs.map(m=>'<option value="'+esc(m)+'">').join('')+'</datalist></div>'+
     '<div class="field"><span class="flabel">Próximo servicio</span><div class="grid2"><div class="field"><label for="s-pf">Fecha</label><input id="s-pf" name="prox_fecha" type="date" value="'+v('prox_fecha')+'"></div>'+
     '<div class="field"><label for="s-pk">Kilometraje</label><input id="s-pk" name="prox_km" type="number" min="0" step="1" inputmode="numeric" value="'+v('prox_km')+'"></div></div>'+
     '<div class="chips"><button type="button" class="chip" data-act="prox" data-m="3">+3 meses</button><button type="button" class="chip" data-act="prox" data-m="6">+6 meses</button><button type="button" class="chip" data-act="prox" data-k="5000">+5,000 km</button><button type="button" class="chip" data-act="prox" data-k="10000">+10,000 km</button></div>'+
     '<span class="hint">El cliente lo verá al escanear el QR para saber cuándo regresar.</span></div>'+
-    '<p class="private">Solo taller</p><div class="grid2"><div class="field"><label for="s-precio">Precio (MXN)</label><input id="s-precio" name="precio" type="number" min="0" step="0.01" inputmode="decimal" value="'+v('precio')+'"></div>'+
-    '<div class="field"><label for="s-cli">Cliente</label><input id="s-cli" name="cliente" value="'+(s?v('cliente'):esc(car.cliente))+'"></div></div>'+
+    '<section class="stack"><div><h3>Refacciones y mano de obra</h3><p class="hint">Tus clientes verán '+VISTA_CLIENTE[(taller&&taller.mostrar_precios)||'desglose']+' al escanear el QR. Puedes cambiarlo en Ajustes.</p></div>'+
+    '<div class="field"><span class="flabel">Refacciones (una por renglón, con su precio)</span><div id="parts" class="parts">'+initialParts(s).map(partRow).join('')+'</div></div>'+
+    '<div class="chips"><button type="button" class="btn small" data-act="addPart">+ Agregar refacción</button>'+PARTES_RAPIDAS.map(n=>'<button type="button" class="chip" data-act="addPart" data-n="'+esc(n)+'">+ '+esc(n)+'</button>').join('')+'</div>'+
+    '<div class="field"><label for="s-pmo">Mano de obra $ (MXN)</label><input id="s-pmo" name="precio_mano_obra" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" value="'+v('precio_mano_obra')+'"></div>'+
+    '<div class="totals" aria-live="polite"><div class="cost-row" id="r-ref"><span>Total refacciones</span><b id="t-ref" class="price">$0.00</b></div><div class="cost-row" id="r-mo"><span>Mano de obra</span><b id="t-mo" class="price">$0.00</b></div><div class="cost-row cost-final"><span>Total</span><b id="t-tot" class="price">$0.00</b></div></div>'+
+    (legacyOnly(s)?'<span class="hint">Este servicio se guardó antes con un solo precio ('+money(s.precio)+'). Si no capturas precios, se conserva.</span>':'')+
+    '</section>'+
+    '<p class="private">Solo taller</p>'+
+    '<div class="field"><label for="s-cli">Cliente</label><input id="s-cli" name="cliente" value="'+(s?v('cliente'):esc(car.cliente))+'"></div>'+
     errHtml()+submit('Guardar servicio')+'</form>';
 }
 function labelsView(){
@@ -409,16 +515,71 @@ function settingsView(){
     '<div class="field"><label for="t-nom">Nombre del taller</label><input id="t-nom" name="nombre" required value="'+esc(taller.nombre)+'"></div>'+
     '<div class="field"><label for="t-tel">Teléfono</label><input id="t-tel" name="telefono" inputmode="tel" value="'+esc(taller.telefono)+'"></div>'+
     '<div class="field"><label for="t-wa">WhatsApp para citas (10 dígitos)</label><input id="t-wa" name="whatsapp" inputmode="tel" value="'+esc(taller.whatsapp)+'"><span class="hint">Tus clientes verán un botón para agendar por WhatsApp.</span></div>'+
+    '<fieldset class="field"><legend class="flabel">¿Qué precios ve el cliente al escanear el QR?</legend>'+
+    [['desglose','Desglose completo','Cada refacción con su precio, mano de obra y total.'],['total','Solo el total final','Sin precio de cada pieza ni de la mano de obra.'],['nada','Ningún precio','Solo ve qué se le hizo al auto.']].map(o=>
+      '<label class="opt"><input type="radio" name="mostrar_precios" value="'+o[0]+'"'+(((taller.mostrar_precios||'desglose')===o[0])?' checked':'')+'><span>'+o[1]+'<small>'+o[2]+'</small></span></label>').join('')+'</fieldset>'+
     errHtml()+submit('Guardar ajustes')+'</form>'+
     '<section class="note">Cuenta: '+esc(session.user.email)+'<br>Página de clientes: <span class="sel">'+esc(CLIENTE_URL)+'</span></section>';
+}
+
+/* ---------- ganancias (solo dueño): se calcula con la mano de obra ---------- */
+const MESES_L=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const parseIso=x=>{const a=String(x).slice(0,10).split('-').map(Number);return new Date(a[0],a[1]-1,a[2]);};
+function weekStart(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}
+function periods(per){
+  const out=[],now=new Date();
+  if(per==='semana'){let w=weekStart(now);for(let i=0;i<8;i++){const s=new Date(w);s.setDate(s.getDate()-7*i);const e=new Date(s);e.setDate(e.getDate()+6);
+      out.unshift({key:iso(s),from:iso(s),to:iso(e),x:s.getDate()+' '+MES[s.getMonth()],
+        label:'Semana del '+s.getDate()+' '+MES[s.getMonth()]+' al '+e.getDate()+' '+MES[e.getMonth()]});}}
+  else{for(let i=0;i<6;i++){const s=new Date(now.getFullYear(),now.getMonth()-i,1),e=new Date(s.getFullYear(),s.getMonth()+1,0);
+      out.unshift({key:iso(s),from:iso(s),to:iso(e),x:MES[s.getMonth()],label:MESES_L[s.getMonth()][0].toUpperCase()+MESES_L[s.getMonth()].slice(1)+' '+s.getFullYear()});}}
+  return out.map(p=>{const svcs=servicios.filter(s=>s.fecha>=p.from&&s.fecha<=p.to).sort((a,b)=>a.fecha<b.fecha?1:a.fecha>b.fecha?-1:b.folio-a.folio);
+    const sum=k=>r2(svcs.reduce((t,s)=>t+(Number(s[k])||0),0));
+    return Object.assign(p,{svcs,mo:sum('precio_mano_obra'),ref:sum('precio_refacciones'),tot:sum('precio')});});
+}
+function niceMax(v){if(v<=0)return 1000;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p;}
+function shortMoney(v){return v>=1000?'$'+(Math.round(v/100)/10).toLocaleString('es-MX')+'k':'$'+Math.round(v);}
+function ganView(){
+  const g=ui.gan||(ui.gan={per:'mes',key:null}),ps=periods(g.per),sel=ps.find(p=>p.key===g.key)||ps[ps.length-1];
+  const top=niceMax(Math.max(...ps.map(p=>p.mo)));
+  let h='<section class="stack"><div><h2>Ganancias</h2><p class="hint">Se calculan con la mano de obra de cada servicio. Solo tú las ves.</p></div>'+
+    '<div class="seg" role="group" aria-label="Agrupar por"><button data-act="ganPer" data-p="semana" aria-pressed="'+(g.per==='semana')+'">Por semana</button><button data-act="ganPer" data-p="mes" aria-pressed="'+(g.per==='mes')+'">Por mes</button></div>'+
+    '<div class="gan-hero"><p class="eyebrow">'+esc(sel.label)+'</p><div class="gan-big">'+money(sel.mo)+'</div><p class="muted">de mano de obra</p>'+
+    '<div class="gan-sub"><span>Servicios <b>'+sel.svcs.length+'</b></span><span>Refacciones <b>'+money(sel.ref)+'</b></span><span>Total cobrado <b>'+money(sel.tot)+'</b></span></div></div>'+
+    '<div class="gchart" role="group" aria-label="Mano de obra por '+(g.per==='mes'?'mes':'semana')+'">'+
+      [1,.5].map(f=>'<div class="gchart-grid" style="bottom:calc(26px + '+(f*100)+'% - '+(f*44)+'px)"><span>'+shortMoney(top*f)+'</span></div>').join('')+
+      '<div class="gchart-base"></div><div class="gchart-cols">'+
+      ps.map(p=>{const on=p.key===sel.key,pct=p.mo/top*100;
+        return '<button class="gbar" data-act="ganSel" data-k="'+p.key+'" aria-pressed="'+on+'" aria-label="'+esc(p.label)+': '+money(p.mo)+' de mano de obra" title="'+esc(p.label)+': '+money(p.mo)+'">'+
+          (on&&p.mo>0?'<span class="gbar-v">'+shortMoney(p.mo)+'</span>':'')+
+          '<span class="gbar-fill" style="height:'+(p.mo>0?Math.max(pct,2):0)+'%"></span><span class="gbar-x">'+esc(p.x)+'</span></button>';}).join('')+
+      '</div></div></section>';
+  h+='<section class="stack"><div><h3>Servicios de '+esc(g.per==='mes'?sel.label.toLowerCase():sel.label.replace('Semana','la semana'))+'</h3><p class="hint">Toca uno para ver todos sus detalles.</p></div>';
+  if(!sel.svcs.length)return h+'<p class="note">No hay servicios registrados en este periodo.</p></section>';
+  return h+'<div class="car-list">'+sel.svcs.map(s=>{const c=carOf(s.coche_id)||{placas:'—'};
+    return '<button class="gan-row" data-act="svcOpen" data-id="'+s.id+'"><span class="mini-plate">'+esc(c.placas)+'</span><span class="car-row-main"><strong>'+esc(s.servicio)+'</strong>'+
+      '<span>'+fdate(s.fecha)+' · '+esc(s.cliente||c.cliente||'Sin cliente')+'</span></span>'+
+      '<span class="gan-amt"><b>'+money(Number(s.precio_mano_obra)||0)+'</b><small>Total '+money(s.precio)+'</small></span></button>';}).join('')+'</div></section>';
+}
+function svcDetailView(){
+  const s=servicios.find(x=>x.id===ui.svc);if(!s){ui.view='gan';return ganView();}
+  const c=carOf(s.coche_id)||{placas:'—',cliente:'',telefono:''};
+  return '<button class="btn link" data-act="go" data-v="gan">‹ Ganancias</button>'+
+    '<div class="car-head">'+plateHtml(c.placas)+'<p class="vehicle">'+esc(vehicle(c))+'</p>'+
+    '<p><span class="private">Solo taller</span><br>'+esc(c.cliente||'Sin cliente')+(c.telefono?' · <span class="sel">'+esc(c.telefono)+'</span>':'')+'</p></div>'+
+    stickerHtml(s,{modo:'desglose',owner:true,title:'Servicio'})+
+    (s.prox_fecha||s.prox_km?nextHtml(s):'')+
+    '<div class="row"><button class="btn primary" data-act="open" data-id="'+c.id+'">Ver coche e historial</button><button class="btn" data-act="svcEdit" data-id="'+s.id+'">Editar servicio</button></div>';
 }
 function render(){
   let body,tabs=false;
   if(ui.loading)body='<p class="muted">Cargando…</p>';
   else if(!session)body=authView();
   else if(!taller)body=setupView();
-  else{tabs=true;body=({home:homeView,due:dueView,car:carView,carForm,svcForm,labels:labelsView,settings:settingsView}[ui.view]||homeView)();}
+  else{tabs=true;body=({home:homeView,gan:ganView,svcDetail:svcDetailView,due:dueView,car:carView,carForm,svcForm,labels:labelsView,settings:settingsView}[ui.view]||homeView)();}
   document.body.classList.toggle('has-tabs',tabs);
+  setTimeout(updateTotals,0);
   app.innerHTML='<div class="wrap">'+header()+msgHtml()+body+'</div>'+(tabs?tabbar():'');
 }
 
@@ -426,6 +587,10 @@ function render(){
 const act={
   go:d=>go(d.v,{edit:null}),
   open:d=>go('car',{car:d.id}),
+  ganPer:d=>{ui.gan={per:d.p,key:null};render();},
+  ganSel:d=>{ui.gan.key=d.k;render();},
+  svcOpen:d=>go('svcDetail',{svc:d.id}),
+  svcEdit:d=>{const s=servicios.find(x=>x.id===d.id);if(s)go('svcForm',{car:s.coche_id,edit:s.id});},
   newCar:()=>go('carForm',{edit:null}),
   editCar:()=>go('carForm',{edit:ui.car}),
   newSvc:()=>go('svcForm',{edit:null}),
@@ -444,6 +609,12 @@ const act={
   delCar:()=>{if(!confirm('¿Borrar este coche y todo su historial? Su etiqueta QR dejará de funcionar.'))return;
     run(async()=>{const id=ui.car,r=await sb.from('coches').delete().eq('id',id);if(r.error)return flash('err',errText(r.error));
       coches=coches.filter(c=>c.id!==id);servicios=servicios.filter(s=>s.coche_id!==id);go('home',{msg:{t:'ok',s:'Coche borrado.'}});});},
+  addPart:d=>{const box=document.getElementById('parts');if(!box)return;
+    const empty=d.n?[...box.querySelectorAll('.part-row')].find(r=>!r.querySelector('[name=part_nombre]').value.trim()&&!r.querySelector('[name=part_precio]').value.trim()):null;
+    if(empty)empty.querySelector('[name=part_nombre]').value=d.n;else box.insertAdjacentHTML('beforeend',partRow({nombre:d.n||''}));
+    const row=empty||box.lastElementChild;row.querySelector(d.n?'[name=part_precio]':'[name=part_nombre]').focus();},
+  delPart:(d,b)=>{const box=document.getElementById('parts'),row=b.closest('.part-row');if(row)row.remove();
+    if(box&&!box.children.length)box.insertAdjacentHTML('beforeend',partRow({}));updateTotals();},
   label:d=>downloadLabels([d.id]),
   labels:()=>downloadLabels(ui.sel||[]),
   selAll:()=>{ui.sel=coches.map(c=>c.id);render();},
@@ -460,6 +631,7 @@ const forms={
     session=r.data.session;await load();}),
   taller:fd=>run(async()=>{
     const data={nombre:str(fd,'nombre'),telefono:str(fd,'telefono'),whatsapp:str(fd,'whatsapp')};
+    if(fd.get('mostrar_precios'))data.mostrar_precios=String(fd.get('mostrar_precios'));
     const r=taller?await sb.from('talleres').update(data).eq('id',taller.id).select().single():await sb.from('talleres').insert(data).select().single();
     if(r.error){ui.err=errText(r.error);return;}
     const nuevo=!taller;taller=r.data;ui.err=null;go(nuevo?'home':'settings',{msg:{t:'ok',s:nuevo?'Taller listo. Registra tu primer coche.':'Ajustes guardados.'}});}),
@@ -473,8 +645,11 @@ const forms={
     go('car',{car:r.data.id,edit:null,msg:{t:'ok',s:was?'Coche actualizado.':'Coche registrado. Descarga su etiqueta QR cuando quieras.'}});}),
   svc:fd=>run(async()=>{
     const data={fecha:str(fd,'fecha'),km:num(fd,'km'),servicio:str(fd,'servicio'),aceite:str(fd,'aceite'),filtros:str(fd,'filtros'),
-      refacciones:str(fd,'refacciones'),mecanico:str(fd,'mecanico'),prox_fecha:str(fd,'prox_fecha')||null,prox_km:num(fd,'prox_km'),
-      precio:num(fd,'precio'),cliente:str(fd,'cliente')};
+      mecanico:str(fd,'mecanico'),prox_fecha:str(fd,'prox_fecha')||null,prox_km:num(fd,'prox_km'),cliente:str(fd,'cliente')};
+    const partes=readParts(),mo=num(fd,'precio_mano_obra'),old=currentSvc();
+    if(partes.some(p=>p.precio!=null&&p.precio<0)||(mo!=null&&mo<0)){ui.err='Los precios no pueden ser negativos.';return;}
+    const t=calcTotals(partes,mo==null?null:r2(mo),legacyOnly(old)?old.precio:null);
+    Object.assign(data,{partes,refacciones:partes.map(p=>p.nombre).filter(Boolean).join(', '),precio_refacciones:t.ref,precio_mano_obra:t.mo,precio:t.tot});
     const r=ui.edit?await sb.from('servicios').update(data).eq('id',ui.edit).select().single()
                    :await sb.from('servicios').insert(Object.assign({coche_id:ui.car,taller_id:taller.id},data)).select().single();
     if(r.error){ui.err=errText(r.error);return;}
@@ -483,7 +658,7 @@ const forms={
 };
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||ui.busy)return;const f=act[b.dataset.act];if(f){e.preventDefault();f(b.dataset,b);}});
 document.addEventListener('submit',e=>{e.preventDefault();const f=forms[e.target.dataset.form];if(f)f(new FormData(e.target));});
-document.addEventListener('input',e=>{if(e.target.id==='q'){ui.q=e.target.value;const l=document.getElementById('car-list');if(l)l.innerHTML=carRows();}});
+document.addEventListener('input',e=>{if(e.target.name==='part_precio'||e.target.id==='s-pmo'){updateTotals();return;}if(e.target.id==='q'){ui.q=e.target.value;const l=document.getElementById('car-list');if(l)l.innerHTML=carRows();}});
 document.addEventListener('change',e=>{const id=e.target.dataset&&e.target.dataset.sel;if(!id)return;let s=ui.sel||[];
   s=e.target.checked?(s.includes(id)?s:s.concat(id)):s.filter(x=>x!==id);ui.sel=s;render();});
 

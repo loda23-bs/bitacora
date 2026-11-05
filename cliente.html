@@ -102,6 +102,17 @@ dl.kv dd{margin:0;min-width:0;overflow-wrap:anywhere;white-space:pre-line}
 .due{align-self:flex-start;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
 .due.ok{color:var(--ok)} .due.soon{color:var(--accent)} .due.late{color:var(--danger)}
 .wa-box{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.cost{display:flex;flex-direction:column;gap:5px;border-top:1px dashed var(--line);padding-top:10px}
+.cost-title{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.cost-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:14px}
+.cost-row>span:first-child{min-width:0;overflow-wrap:anywhere}
+.cost-row .price{white-space:nowrap}
+.cost-sub{color:var(--muted);border-top:1px solid var(--line);padding-top:5px}
+.cost-sub+.cost-sub{border-top:0;padding-top:0}
+.cost-final{font-weight:700;font-size:16px;border-top:2px solid var(--ink);padding-top:6px;margin-top:2px}
+.cost-more{margin-top:4px}
+.cost-more summary{cursor:pointer;color:var(--accent);font-size:13.5px;font-weight:600;padding:4px 0}
+.cost-more .cost{margin-top:6px}
 .foot{font-size:12.5px;color:var(--muted);text-align:center;padding-top:10px}
 @media (prefers-reduced-motion: no-preference){.sticker{animation:pop .35s ease-out both}@keyframes pop{from{transform:translateY(6px)}to{transform:none}}}
 </style>
@@ -149,33 +160,51 @@ function nextHtml(s){
     (n!==null?'<span class="due '+dueClass(n)+'">'+dueTxt(n)+'</span>':'')+
     (s.prox_fecha&&s.prox_km?'<p class="hint">Lo que ocurra primero.</p>':'')+'</section>';
 }
-/* priv = {precio, cliente} solo en el panel del dueño */
-function stickerHtml(s,priv){
-  return '<section class="sticker" aria-label="Último servicio"><div class="sticker-head"><span>Último servicio</span><span class="mono">'+folio(s.folio)+'</span></div>'+
+function partesOf(s){return Array.isArray(s.partes)?s.partes.filter(p=>p&&(p.nombre||p.precio!=null)):[];}
+function hasCost(s){return s.precio!=null||s.precio_refacciones!=null||s.precio_mano_obra!=null;}
+function hasDesglose(s){return partesOf(s).length>0||Number(s.precio_refacciones)>0||Number(s.precio_mano_obra)>0;}
+/* modo: 'desglose' (cada refacción, subtotales y total), 'total' (solo total) o 'nada'.
+   Un apartado sin datos (sin refacciones o sin mano de obra) no se muestra. */
+function costHtml(s,modo){
+  if(modo==='nada'||!hasCost(s))return '';
+  const fin='<div class="cost-row cost-final"><span>Total</span><span class="price">'+money(s.precio)+'</span></div>';
+  if(modo!=='desglose'||!hasDesglose(s))return '<div class="cost">'+fin+'</div>';
+  const partes=partesOf(s),hasRef=partes.length>0||Number(s.precio_refacciones)>0,hasMo=Number(s.precio_mano_obra)>0;
+  return '<div class="cost">'+
+    (hasRef?'<p class="cost-title">Refacciones</p>'+partes.map(p=>'<div class="cost-row"><span>'+esc(p.nombre||'Refacción')+'</span><span class="price">'+money(p.precio)+'</span></div>').join('')+
+      '<div class="cost-row cost-sub"><span>Total refacciones</span><span class="price">'+money(s.precio_refacciones||0)+'</span></div>':'')+
+    (hasMo?'<div class="cost-row cost-sub"><span>Mano de obra</span><span class="price">'+money(s.precio_mano_obra)+'</span></div>':'')+fin+'</div>';
+}
+/* o = {modo, owner}: owner agrega el nombre del cliente (solo panel del dueño) */
+function stickerHtml(s,o){
+  const showParts=o.modo==='desglose'&&partesOf(s).length>0;
+  return '<section class="sticker" aria-label="'+(o.title||'Último servicio')+'"><div class="sticker-head"><span>'+(o.title||'Último servicio')+'</span><span class="mono">'+folio(s.folio)+'</span></div>'+
     '<div class="sticker-body"><div><div class="sticker-date">'+fdate(s.fecha)+'</div><div class="sticker-ago">'+ago(s.fecha)+'</div></div>'+
     '<p class="sticker-what">'+esc(s.servicio)+'</p><dl class="kv">'+
     (s.km!=null?'<dt>Kilometraje</dt><dd class="price">'+kmf(s.km)+'</dd>':'')+
     (s.aceite?'<dt>Aceite</dt><dd>'+esc(s.aceite)+'</dd>':'')+
     (s.filtros?'<dt>Filtros</dt><dd>'+esc(s.filtros)+'</dd>':'')+
-    (s.refacciones?'<dt>Refacciones</dt><dd>'+esc(s.refacciones)+'</dd>':'')+
+    (s.refacciones&&!showParts?'<dt>Refacciones</dt><dd>'+esc(s.refacciones)+'</dd>':'')+
     (s.mecanico?'<dt>Mecánico</dt><dd>'+esc(s.mecanico)+'</dd>':'')+
-    (priv?'<dt>Precio</dt><dd class="price">'+money(priv.precio)+'</dd><dt>Cliente</dt><dd>'+esc(priv.cliente||'—')+'</dd>':'')+
-    '</dl></div></section>';
+    (o.owner?'<dt>Cliente</dt><dd>'+esc(s.cliente||'—')+'</dd>':'')+
+    '</dl>'+costHtml(s,o.modo)+'</div></section>';
 }
-/* extra(s) agrega precio y botones en el panel del dueño */
-function histHtml(list,owner,extra){
+/* extra(s) agrega botones en el panel del dueño */
+function histHtml(list,o,extra){
   if(!list.length)return '';
   return '<section class="stack"><h2>Historial</h2><ol class="hist">'+list.map(s=>{
-    const meta=[];
+    const showParts=o.modo==='desglose'&&partesOf(s).length>0,meta=[];
     if(s.km!=null)meta.push('Kilometraje: '+kmf(s.km));
     if(s.aceite)meta.push('Aceite: '+s.aceite);
     if(s.filtros)meta.push('Filtros: '+s.filtros);
-    if(s.refacciones)meta.push('Refacciones: '+s.refacciones);
+    if(s.refacciones&&!showParts)meta.push('Refacciones: '+s.refacciones);
     if(s.mecanico)meta.push('Mecánico: '+s.mecanico);
-    if(owner&&s.cliente)meta.push('Cliente: '+s.cliente);
+    if(o.owner&&s.cliente)meta.push('Cliente: '+s.cliente);
     return '<li class="hist-item"><div class="hist-top"><span class="hist-date">'+fdate(s.fecha)+'</span><span class="mono muted">'+folio(s.folio)+'</span>'+
-      (owner?'<span class="price">'+money(s.precio)+'</span>':'')+'</div><p class="hist-what">'+esc(s.servicio)+'</p>'+
-      (meta.length?'<p class="hist-meta">'+esc(meta.join('\n'))+'</p>':'')+(extra?extra(s):'')+'</li>';
+      (o.modo!=='nada'&&s.precio!=null?'<span class="price">'+money(s.precio)+'</span>':'')+'</div><p class="hist-what">'+esc(s.servicio)+'</p>'+
+      (meta.length?'<p class="hist-meta">'+esc(meta.join('\n'))+'</p>':'')+
+      (o.modo==='desglose'&&hasDesglose(s)?'<details class="cost-more"><summary>Ver desglose</summary>'+costHtml(s,'desglose')+'</details>':'')+
+      (extra?extra(s):'')+'</li>';
   }).join('')+'</ol></section>';
 }
 
@@ -209,7 +238,8 @@ function waHtml(t,placas){
   const t=d.taller,c=d.coche,list=d.servicios||[];
   document.title=c.placas+' · '+t.nombre;
   let h='<div class="car-head">'+plateHtml(c.placas)+'<p class="vehicle">'+esc(vehicle(c))+'</p></div>';
-  h+=list.length?nextHtml(list[0])+waHtml(t,c.placas)+stickerHtml(list[0],null)+histHtml(list.slice(1),false)
+  const modo=t.mostrar_precios||'desglose';
+  h+=list.length?nextHtml(list[0])+waHtml(t,c.placas)+stickerHtml(list[0],{modo})+histHtml(list.slice(1),{modo})
                :'<p class="note">Este auto todavía no tiene servicios registrados.</p>'+waHtml(t,c.placas);
   page(h,t.nombre,t.telefono);
 })();
