@@ -315,7 +315,15 @@ async function load(){
   }
   ui.loading=false;render();
 }
-async function run(fn){if(ui.busy)return;ui.busy=true;render();try{await fn();}finally{ui.busy=false;render();}}
+async function run(fn){if(ui.busy)return;ui.busy=true;ui.err=null;
+  const btn=document.querySelector('form [type=submit]'),label=btn&&btn.textContent;
+  if(btn){btn.disabled=true;btn.textContent=btn.closest('[data-form=auth]')?'Un momento…':'Guardando…';}
+  const viewBefore=ui.view;
+  try{await fn();}
+  finally{ui.busy=false;
+    const box=document.getElementById('form-err');
+    if(ui.err&&box&&ui.view===viewBefore){box.textContent=ui.err;box.hidden=false;box.scrollIntoView({block:'center'});if(btn){btn.disabled=false;btn.textContent=label;}}
+    else render();}}
 
 /* ---------- QR y etiquetas ---------- */
 function qrMatrix(text){const q=qrcode(0,'M');q.addData(text);q.make();return q;}
@@ -374,7 +382,7 @@ function tabbar(){
     (x[0]==='due'&&nDue?'<span class="badge">'+nDue+'</span>':'')+'<span>'+x[1]+'</span></button>').join('')+'</div></nav>';
 }
 const msgHtml=()=>ui.msg?'<div class="msg '+ui.msg.t+'" role="status">'+esc(ui.msg.s)+'</div>':'';
-const errHtml=()=>ui.err?'<p class="msg err">'+esc(ui.err)+'</p>':'';
+const errHtml=()=>'<p class="msg err" id="form-err" role="alert"'+(ui.err?'':' hidden')+'>'+esc(ui.err||'')+'</p>';
 const submit=(label)=>'<button class="btn primary" type="submit"'+(ui.busy?' disabled':'')+'>'+(ui.busy?'Guardando…':label)+'</button>';
 
 function authView(){
@@ -440,7 +448,7 @@ function carForm(){
     '<p class="private">Solo taller</p><div class="grid2">'+f('c-cli','cliente','Cliente')+f('c-tel','telefono','Teléfono del cliente',' inputmode="tel"')+'</div>'+
     errHtml()+submit('Guardar coche')+'</form>';
 }
-const PARTES_RAPIDAS=['Aceite','Filtro de aceite','Filtro de aire','Filtro de gasolina','Bujías','Balatas'];
+const PARTES_RAPIDAS=['Aceite','Filtro de aceite','Filtro de aire','Filtro de gasolina','Filtro de cabina','Bujías','Balatas','Anticongelante'];
 const r2=n=>Math.round(n*100)/100;
 function legacyOnly(s){return !!s&&s.precio!=null&&!hasDesglose(s);}
 function partRow(p){p=p||{};
@@ -449,14 +457,19 @@ function partRow(p){p=p||{};
     '<button type="button" class="part-del" data-act="delPart" aria-label="Quitar refacción">×</button></div>';}
 function initialParts(s){
   if(!s)return [{}];
-  const ps=partesOf(s);if(ps.length)return ps;
-  if(s.precio_refacciones!=null)return [{nombre:s.refacciones||'Refacciones',precio:s.precio_refacciones}];
-  const fromText=String(s.refacciones||'').split(/,|\n/).map(x=>x.trim()).filter(Boolean).map(n=>({nombre:n}));
-  return fromText.length?fromText:[{}];
+  let ps=partesOf(s).map(p=>({nombre:p.nombre,precio:p.precio}));
+  if(!ps.length&&s.precio_refacciones!=null)ps=[{nombre:s.refacciones||'Refacciones',precio:s.precio_refacciones}];
+  if(!ps.length)ps=String(s.refacciones||'').split(/,|\n/).map(x=>x.trim()).filter(Boolean).map(n=>({nombre:n,precio:null}));
+  /* lo que antes se escribía en los campos Aceite y Filtros pasa a la lista para ponerle precio */
+  const extra=[];if(s.aceite)extra.push({nombre:'Aceite '+s.aceite,precio:null});if(s.filtros)extra.push({nombre:'Filtro de '+s.filtros.toLowerCase(),precio:null});
+  ps=extra.concat(ps);
+  return ps.length?ps:[{}];
 }
 function readParts(){return [...document.querySelectorAll('#parts .part-row')].map(r=>{
   const n=r.querySelector('[name=part_nombre]').value.trim(),p=r.querySelector('[name=part_precio]').value.trim();
   return {nombre:n,precio:p===''?null:r2(Number(p))};}).filter(p=>p.nombre||p.precio!=null);}
+function partsFromFd(fd){const n=fd.getAll('part_nombre'),p=fd.getAll('part_precio');
+  return n.map((x,i)=>{const pr=String(p[i]==null?'':p[i]).trim();return {nombre:String(x).trim(),precio:pr===''?null:r2(Number(pr))};}).filter(q=>q.nombre||q.precio!=null);}
 function calcTotals(partes,mo,fallback){
   const conPrecio=partes.filter(p=>p.precio!=null),ref=conPrecio.length?r2(conPrecio.reduce((t,p)=>t+p.precio,0)):null;
   if(ref==null&&mo==null)return {ref:null,mo:null,tot:fallback==null?null:fallback};
@@ -482,17 +495,15 @@ function svcForm(){
     '<div class="field"><label for="s-km">Kilometraje</label><input id="s-km" name="km" type="number" min="0" step="1" inputmode="numeric" placeholder="Ej. 46750" value="'+v('km')+'"></div></div>'+
     '<div class="field"><label for="s-serv">¿Qué se le hizo?</label><div class="chips">'+SERVICIOS.map(t=>'<button type="button" class="chip" data-act="chip" data-t="'+esc(t)+'">'+esc(t)+'</button>').join('')+'</div>'+
     '<textarea id="s-serv" name="servicio" required>'+v('servicio')+'</textarea></div>'+
-    '<div class="grid2"><div class="field"><label for="s-aceite">Aceite</label><input id="s-aceite" name="aceite" placeholder="Ej. Sintético 5W-30 · 4 L" value="'+v('aceite')+'"></div>'+
-    '<div class="field"><label for="s-filt">Filtros</label><input id="s-filt" name="filtros" placeholder="Ej. Aceite y aire" value="'+v('filtros')+'"></div></div>'+
     '<div class="field"><label for="s-mec">Mecánico</label><input id="s-mec" name="mecanico" list="mecs" value="'+v('mecanico')+'"><datalist id="mecs">'+mecs.map(m=>'<option value="'+esc(m)+'">').join('')+'</datalist></div>'+
     '<div class="field"><span class="flabel">Próximo servicio</span><div class="grid2"><div class="field"><label for="s-pf">Fecha</label><input id="s-pf" name="prox_fecha" type="date" value="'+v('prox_fecha')+'"></div>'+
     '<div class="field"><label for="s-pk">Kilometraje</label><input id="s-pk" name="prox_km" type="number" min="0" step="1" inputmode="numeric" value="'+v('prox_km')+'"></div></div>'+
     '<div class="chips"><button type="button" class="chip" data-act="prox" data-m="3">+3 meses</button><button type="button" class="chip" data-act="prox" data-m="6">+6 meses</button><button type="button" class="chip" data-act="prox" data-k="5000">+5,000 km</button><button type="button" class="chip" data-act="prox" data-k="10000">+10,000 km</button></div>'+
     '<span class="hint">El cliente lo verá al escanear el QR para saber cuándo regresar.</span></div>'+
     '<section class="stack"><div><h3>Refacciones y mano de obra</h3><p class="hint">Tus clientes verán '+VISTA_CLIENTE[(taller&&taller.mostrar_precios)||'desglose']+' al escanear el QR. Puedes cambiarlo en Ajustes.</p></div>'+
-    '<div class="field"><span class="flabel">Refacciones (una por renglón, con su precio)</span><div id="parts" class="parts">'+initialParts(s).map(partRow).join('')+'</div></div>'+
+    '<div class="field"><span class="flabel">Refacciones y materiales (aceite, filtros, piezas): una por renglón, con su precio</span><div id="parts" class="parts">'+initialParts(s).map(partRow).join('')+'</div></div>'+
     '<div class="chips"><button type="button" class="btn small" data-act="addPart">+ Agregar refacción</button>'+PARTES_RAPIDAS.map(n=>'<button type="button" class="chip" data-act="addPart" data-n="'+esc(n)+'">+ '+esc(n)+'</button>').join('')+'</div>'+
-    '<div class="field"><label for="s-pmo">Mano de obra $ (MXN)</label><input id="s-pmo" name="precio_mano_obra" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" value="'+v('precio_mano_obra')+'"></div>'+
+    '<div class="field"><label for="s-pmo">Mano de obra $ (MXN), total</label><input id="s-pmo" name="precio_mano_obra" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" value="'+v('precio_mano_obra')+'"><span class="hint">Es lo que cuenta en tus Ganancias.</span></div>'+
     '<div class="totals" aria-live="polite"><div class="cost-row" id="r-ref"><span>Total refacciones</span><b id="t-ref" class="price">$0.00</b></div><div class="cost-row" id="r-mo"><span>Mano de obra</span><b id="t-mo" class="price">$0.00</b></div><div class="cost-row cost-final"><span>Total</span><b id="t-tot" class="price">$0.00</b></div></div>'+
     (legacyOnly(s)?'<span class="hint">Este servicio se guardó antes con un solo precio ('+money(s.precio)+'). Si no capturas precios, se conserva.</span>':'')+
     '</section>'+
@@ -644,9 +655,10 @@ const forms={
     const was=ui.edit;coches=coches.filter(c=>c.id!==r.data.id).concat(r.data);ui.err=null;
     go('car',{car:r.data.id,edit:null,msg:{t:'ok',s:was?'Coche actualizado.':'Coche registrado. Descarga su etiqueta QR cuando quieras.'}});}),
   svc:fd=>run(async()=>{
-    const data={fecha:str(fd,'fecha'),km:num(fd,'km'),servicio:str(fd,'servicio'),aceite:str(fd,'aceite'),filtros:str(fd,'filtros'),
+    const data={fecha:str(fd,'fecha'),km:num(fd,'km'),servicio:str(fd,'servicio'),aceite:'',filtros:'',
       mecanico:str(fd,'mecanico'),prox_fecha:str(fd,'prox_fecha')||null,prox_km:num(fd,'prox_km'),cliente:str(fd,'cliente')};
-    const partes=readParts(),mo=num(fd,'precio_mano_obra'),old=currentSvc();
+    const partes=partsFromFd(fd),mo=num(fd,'precio_mano_obra'),old=currentSvc();
+    if(partes.some(p=>p.precio!=null&&isNaN(p.precio))){ui.err='Revisa los precios: solo números.';return;}
     if(partes.some(p=>p.precio!=null&&p.precio<0)||(mo!=null&&mo<0)){ui.err='Los precios no pueden ser negativos.';return;}
     const t=calcTotals(partes,mo==null?null:r2(mo),legacyOnly(old)?old.precio:null);
     Object.assign(data,{partes,refacciones:partes.map(p=>p.nombre).filter(Boolean).join(', '),precio_refacciones:t.ref,precio_mano_obra:t.mo,precio:t.tot});
