@@ -93,19 +93,31 @@ dialog label{display:block;font-weight:600;font-size:14px;margin-top:12px}
 .load input{display:block;margin-top:10px;font:15px Inter,sans-serif;max-width:100%}
 .load small{display:block;color:var(--muted);margin-top:8px}
 .listen{width:100%;margin-top:8px;background:var(--acc);color:#1a0d08}
+.seg{display:flex;gap:0;margin-top:8px;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;width:max-content}
+.seg button{min-height:40px;padding:0 18px;border:0;background:var(--field);color:var(--ink);font:600 14px Inter,sans-serif;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.tview{margin-top:10px;font:19px/1.75 Literata,Georgia,serif;color:var(--ink);padding:4px 2px 12px;-webkit-user-select:none;user-select:none}
+.tview .hint{font:13px Inter,sans-serif;color:var(--muted);margin:0 0 10px}
+.tview .s{border-radius:6px;transition:background .25s}
+.tview .s.on{background:light-dark(#dff0f5,#173f4d)}
+.tview .w{cursor:pointer;border-radius:4px;padding:0 1px}
+.tview .w.cur{background:var(--acc);color:#1a0d08}
+.tview .w:active{outline:2px solid var(--acc)}
 #player{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--band);color:var(--bandInk);padding:10px max(4vw,12px) calc(10px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(0,0,0,.25)}
 #player[hidden]{display:none}
 #player .pwrap{max-width:1000px;margin:0 auto;display:grid;gap:8px}
 #player .ptop{display:flex;justify-content:space-between;gap:10px;font-size:13px;opacity:.9}
 #player .ptop b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#player .ptop span{white-space:nowrap}
 #player .now{font-size:15px;line-height:1.4;max-height:2.8em;overflow:hidden}
-#player .pctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-#player button{min-height:44px;min-width:44px;border-radius:10px;border:0;background:rgba(255,255,255,.14);color:var(--bandInk);font:600 16px Inter,sans-serif;cursor:pointer;padding:0 12px}
-#player button.main{background:var(--acc);color:#1a0d08;min-width:64px}
-#player select{min-height:44px;border-radius:10px;border:0;padding:0 8px;font:15px Inter,sans-serif;background:rgba(255,255,255,.92);color:#14232a}
+body.tv #player .now{white-space:nowrap;text-overflow:ellipsis;max-height:1.4em;font-size:14px;opacity:.85}
+#player .pctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#player button{min-height:44px;min-width:42px;border-radius:10px;border:0;background:rgba(255,255,255,.14);color:var(--bandInk);font:600 16px Inter,sans-serif;cursor:pointer;padding:0 12px}
+#player button.main{background:var(--acc);color:#1a0d08;min-width:58px}
+#player #pStop{margin-left:auto}
+#player select{min-height:44px;max-width:120px;border-radius:10px;border:0;padding:0 6px;font:15px Inter,sans-serif;background:rgba(255,255,255,.92);color:#14232a}
 #player .pbar{height:4px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden}
 #player .pbar i{display:block;height:100%;width:0;background:var(--acc)}
-body.playing{padding-bottom:190px}
+body.playing{padding-bottom:170px}
 @media(max-width:600px){.item{grid-template-columns:1fr;padding:14px 10px}.day{padding:16px 10px;border-left-width:5px}.pages{text-align:left}}
 @media(prefers-reduced-motion:reduce){.meter i{transition:none}}
 </style>
@@ -164,8 +176,8 @@ body.playing{padding-bottom:190px}
         <option value="0.75">0.75×</option><option value="0.9">0.9×</option><option value="1">1×</option><option value="1.1">1.1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option>
       </select>
       <select id="pVoice" aria-label="Voz">
-        <option value="es_MX-ald-medium">Voz de hombre: fluida (recomendada)</option>
-        <option value="es_MX-claude-high">Voz de mujer: más detallada, pide celular rápido</option>
+        <option value="es_MX-ald-medium">Hombre (fluida)</option>
+        <option value="es_MX-claude-high">Mujer (detallada)</option>
       </select>
       <button id="pStop" aria-label="Cerrar audiolibro">✕</button>
     </div>
@@ -309,7 +321,9 @@ async function openReader(){
     <span class="pg" id="rInfo"></span>
     <div class="rgrp"><button class="btn sm alt" data-zoom="-1" aria-label="Alejar">−</button><button class="btn sm alt" data-zoom="1" aria-label="Acercar">+</button><button class="btn sm" data-nav="1" aria-label="Página siguiente">→</button></div></div>
     <button class="btn listen" id="listenBtn">▶ Escuchar desde esta página</button>
-    <div class="sheet" id="sheet"><canvas id="cv"></canvas></div>`;
+    <div class="seg" role="group" aria-label="Vista"><button data-view="texto" aria-pressed="${view==="texto"}">Texto</button><button data-view="pdf" aria-pressed="${view==="pdf"}">PDF</button></div>
+    <div class="tview" id="tview" ${view==="texto"?"":"hidden"}></div>
+    <div class="sheet" id="sheet" ${view==="pdf"?"":"hidden"}><canvas id="cv"></canvas></div>`;
   drawPage();
 }
 async function drawPage(){
@@ -319,6 +333,9 @@ async function drawPage(){
   state.bm[cur+"-"+openItem]=String(rPage);
   const bmIn=document.querySelector(`[data-bm="${cur}-${openItem}"]`);if(bmIn)bmIn.value=rPage;
   persist();
+  document.body.classList.toggle("tv",view==="texto");
+  if(view==="texto"){$("sheet").hidden=true;$("tview").hidden=false;return renderTextPage()}
+  $("sheet").hidden=false;$("tview").hidden=true;
   const page=await doc.getPage(rPage);
   const base=page.getViewport({scale:1});
   const W=Math.max(200,sheet.clientWidth);
@@ -331,6 +348,47 @@ async function drawPage(){
   sheet.scrollTop=0;
 }
 function nav(n){const it=curItem();const p=rPage+n;if(p<it.a||p>it.b)return;rPage=p;drawPage();$("reader").scrollIntoView({block:"start",behavior:"smooth"})}
+
+/* vista de texto estilo Speechify: se marca la frase y la palabra; tocar una palabra lee desde ahí */
+let view=(()=>{try{return localStorage.getItem("vistaLector")||"texto"}catch(e){return "texto"}})();
+const textCache=new Map();
+async function getChunks(bk,n,end){
+  const k=bk+"|"+n;if(textCache.has(k))return textCache.get(k);
+  const {text,stop}=await pageText(bk,n,end);const v={ch:chunk(text),stop};textCache.set(k,v);return v;
+}
+const splitWords=t=>t.split(/\s+/).filter(Boolean);
+function weights(words){return words.map(w=>{const L=w.replace(/[^\p{L}]/gu,"").length,D=w.replace(/\D/g,"").length;let x=L+D*3.5+1.4;if(/[,;:]$/.test(w))x+=3.5;if(/[.?!]$/.test(w))x+=1;return x})}
+let shownPage=null,hlS=null,hlW=null;
+async function renderTextPage(){
+  const it=curItem(),tv=$("tview");if(!tv)return;
+  const n=rPage;const {ch}=await getChunks(it.bk,n,it.end);
+  if(n!==rPage||!$("tview"))return;
+  shownPage={bk:it.bk,page:n,day:cur,item:openItem};hlS=hlW=null;
+  tv.innerHTML=`<p class="hint">Toca cualquier palabra para escuchar desde ahí.</p>`+(ch.length?ch.map((c,k)=>`<span class="s" data-k="${k}">${splitWords(c.t).map((w,j)=>`<span class="w" data-k="${k}" data-j="${j}">${esc(w)}</span>`).join(" ")}</span>`).join(" "):`<p class="hint">Esta página no tiene texto para leer.</p>`);
+  highlight(true);
+}
+let userScrollAt=0;
+["touchmove","wheel"].forEach(ev=>window.addEventListener(ev,()=>{userScrollAt=Date.now()},{passive:true}));
+let switching=false;
+function target(e){
+  let j=e.off;
+  if(e.dur&&actx&&actx.currentTime>=e.at){const prog=Math.max(0,Math.min(.999,(actx.currentTime-e.at)/e.dur));const tot=e.cum[e.cum.length-1];let x=prog*tot,q=0;while(q<e.cum.length-1&&e.cum[q]<=x)q++;j=e.off+q}
+  return j>=e.split?{page:e.page+1,k:0,j:j-e.split}:{page:e.page,k:e.i,j};
+}
+function highlight(force){
+  const e=P.list[P.cur],tv=$("tview");
+  if(!P.on||!e)return;
+  const T=target(e);
+  if(openItem===P.item&&cur===P.day&&$("reader")&&$("cv")&&rPage!==T.page&&!switching&&T.page<=pItem().b){switching=true;rPage=T.page;Promise.resolve(drawPage()).finally(()=>{switching=false})}
+  if(!tv||tv.hidden||!shownPage||shownPage.day!==P.day||shownPage.item!==P.item||shownPage.page!==T.page){if(hlS){hlS.classList.remove("on");hlS=null}if(hlW){hlW.classList.remove("cur");hlW=null}return}
+  const s=tv.querySelector(`.s[data-k="${T.k}"]`);
+  if(s!==hlS){if(hlS)hlS.classList.remove("on");hlS=s;if(s)s.classList.add("on")}
+  const j=T.j;
+  const w=s?s.querySelector(`.w[data-j="${j}"]`):null;
+  if(w!==hlW){if(hlW)hlW.classList.remove("cur");hlW=w;if(w){w.classList.add("cur");
+    if(Date.now()-userScrollAt>4000){const r=w.getBoundingClientRect(),bottom=innerHeight-($("player").hidden?20:$("player").offsetHeight+24);if(r.top<70||r.bottom>bottom)w.scrollIntoView({block:"center",behavior:force?"auto":"smooth"})}}}
+}
+(function hlLoop(){try{if(P.on&&P.playing)highlight(false)}catch(e){}requestAnimationFrame(hlLoop)})();
 
 /* ---------- audiolibro: voz Piper que corre en tu celular, gratis ---------- */
 const TTS={
@@ -469,14 +527,28 @@ async function addPage(g){
   const key=it.bk+"|"+n+"|"+engine.cfg.espeak.voice;
   let pc=pageCache.get(key);
   if(!pc){
-    const {text,stop}=await pageText(it.bk,n,it.end);
-    const ch=chunk(text);
-    const ids=ch.length?await phonemize(ch.map(c=>speakable(c.t)||c.t)):[];
-    pc={ch,ids,stop};pageCache.set(key,pc);
+    const {ch,stop}=await getChunks(it.bk,n,it.end);
+    let tail=null;
+    const last=ch[ch.length-1];
+    if(last&&!stop&&n<it.b&&!/[.?!:»”]$/.test(last.t)){
+      const nx=await getChunks(it.bk,n+1,it.end);
+      if(nx.ch.length)tail=nx.ch[0].t;
+    }
+    const texts=ch.map((c,i)=>{const t=(i===ch.length-1&&tail)?c.t+" "+tail:c.t;return speakable(t)||t});
+    const ids=ch.length?await phonemize(texts):[];
+    pc={ch,ids,stop,tail};pageCache.set(key,pc);
   }
   if(g!==P.gen)return;
-  const {ch,ids,stop}=pc;
-  ch.forEach((c,i)=>P.list.push({page:n,i,n:ch.length,t:c.t,end:c.end,ids:ids[i],at:0,until:0}));
+  const {ch,ids,stop,tail}=pc;
+  const skip0=P.skipFirstOf===n;
+  ch.forEach((c,i)=>{
+    if(skip0&&i===0)return;
+    let words=splitWords(c.t),split=words.length;
+    if(i===ch.length-1&&tail){words=words.concat(splitWords(tail))}
+    const wt=weights(words);let a=0;const cum=wt.map(x=>a+=x);
+    P.list.push({page:n,i,n:ch.length,t:(i===ch.length-1&&tail)?c.t+" "+tail:c.t,end:c.end,ids:ids[i],words,cum,split,off:0,at:0,until:0,dur:0});
+  });
+  P.skipFirstOf=tail?n+1:null;
   P.nextPage=n+1;if(stop)P.ended=true;
 }
 function stopSources(){for(const s of P.srcs){try{s.onended=null;s.stop()}catch(x){}}P.srcs=[]}
@@ -490,14 +562,15 @@ async function genLoop(g){
     const e=P.list[P.gp];
     let pcm=null;try{pcm=await synth(e.ids,P.speed)}catch(x){pcm=null}
     if(g!==P.gen)return;
-    const gap=e.end?(/[?!]$/.test(e.t)?.42:.34):.14;
+    const gap=e.end?(/[?!]$/.test(e.t)?.3:.24):.07;
     if(pcm&&pcm.length){
       const sr=engine.cfg.audio.sample_rate;
+      const f=Math.min(Math.round(sr*.008),pcm.length>>2);for(let q=0;q<f;q++){const g2=q/f;pcm[q]*=g2;pcm[pcm.length-1-q]*=g2}
       const buf=actx.createBuffer(1,pcm.length,sr);buf.copyToChannel(pcm,0);
       const src=actx.createBufferSource();src.buffer=buf;src.connect(actx.destination);
       const at=Math.max(P.nextAt,actx.currentTime+.06);
       src.start(at);P.srcs.push(src);src.onended=()=>{P.srcs=P.srcs.filter(x=>x!==src)};
-      e.at=at;e.until=at+buf.duration+gap;P.nextAt=e.until;
+      e.at=at;e.dur=buf.duration;e.until=at+buf.duration+gap;P.nextAt=e.until;
       if(P.cur<0)P.cur=P.gp;
     }else{e.at=e.until=Math.max(P.nextAt,actx.currentTime)}
     P.gp++;
@@ -513,7 +586,7 @@ function audioTick(){
   const e=P.list[P.cur];
   if(e&&e.at<=t+.05){
     if($("pNow").dataset.i!==String(P.cur)){$("pNow").dataset.i=P.cur;setNow(e.t);paintPlayer();
-      if(openItem===P.item&&cur===P.day&&$("cv")&&rPage!==e.page){rPage=e.page;drawPage()}}
+      highlight(false)}
     if(P.cur!==lastSaved){lastSaved=P.cur;savePos()}
   }
   if(P.playing&&(!e||t>=e.until)&&P.gp<P.list.length+(P.ended?0:1)&&P.cur>=P.gp-1){setNow("Preparando la siguiente frase…");$("pNow").dataset.i=""}
@@ -528,19 +601,25 @@ function finish(){
   paintPlayer();setNow("Terminaste este capítulo. ¡Bien hecho!");
   const it=pItem();state.audio=state.audio||{};state.audio[pKey()]={page:it.a,idx:0};persist();P.ended=false;P.on=false;
 }
-async function playFrom(page,idx){
+async function playFrom(page,idx,word){
   P.gen++;const g=P.gen;stopSources();
-  P.list=[];P.gp=0;P.cur=-1;P.nextPage=page;P.ended=false;$("pNow").dataset.i="";
+  P.list=[];P.gp=0;P.cur=-1;P.nextPage=page;P.ended=false;P.skipFirstOf=null;$("pNow").dataset.i="";
   await actx.resume();P.nextAt=actx.currentTime+.1;
   setNow("Preparando la página "+page+"…");
   await addPage(g);if(g!==P.gen)return;
   const skip=Math.min(idx||0,Math.max(0,P.list.length-1));
   P.list.splice(0,skip);
+  const f0=P.list[0];
+  if(f0&&word>0&&word<f0.words.length){
+    const sub=f0.words.slice(word).join(" ");
+    try{const [ids]=await phonemize([speakable(sub)||sub]);if(g!==P.gen)return;f0.ids=ids}catch(x){}
+    const wt=weights(f0.words.slice(word));let a=0;f0.cum=wt.map(x=>a+=x);f0.off=word;f0.t=sub;
+  }
   P.playing=true;au.src=silence();au.loop=true;au.play().catch(()=>{});paintPlayer();
   genLoop(g);
   setTimeout(()=>{if(g===P.gen&&engine.rtf>1.05&&P.playing)setNow("Tu celular genera la voz más lento de lo que la lee. Para menos pausas, elige la voz de hombre (es más ligera) o baja la velocidad.")},9000);
 }
-async function startAudio(day,item,page){
+async function startAudio(day,item,page,idx,word){
   if(!actx){const C=window.AudioContext||window.webkitAudioContext;actx=new C()}
   await actx.resume().catch(()=>{});
   P.on=true;P.day=day;P.item=item;
@@ -550,6 +629,7 @@ async function startAudio(day,item,page){
   try{await loadEngine($("pVoice").value)}catch(e){setNow("No se pudo descargar la voz. Revisa tu conexión a internet e intenta de nuevo.");P.playing=false;paintPlayer();return}
   const saved=(state.audio||{})[day+"-"+item];
   const it=pItem();
+  if(idx!==undefined)return playFrom(page,idx,word||0);
   if(page&&!(saved&&saved.page===page))return playFrom(page,0);
   const sp=(saved&&saved.page>=it.a&&saved.page<=it.b)?saved.page:(page||it.a);
   playFrom(sp,saved&&saved.page===sp?saved.idx:0);
@@ -694,6 +774,11 @@ $("dayView").addEventListener("change",async e=>{
 $("dayView").addEventListener("input",e=>{const t=e.target;if(t.dataset.bm!==undefined){state.bm[t.dataset.bm]=t.value;persist()}});
 $("dayView").addEventListener("click",e=>{
   if(e.target.id==="listenBtn"){startAudio(cur,openItem,rPage);return}
+  const vb=e.target.closest("[data-view]");
+  if(vb){view=vb.dataset.view;try{localStorage.setItem("vistaLector",view)}catch(x){}document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===view));drawPage();return}
+  const wd=e.target.closest(".tview .w");
+  if(wd){const k=+wd.dataset.k,j=+wd.dataset.j;
+    if(P.on&&P.day===cur&&P.item===openItem){P.playing=true;playFrom(rPage,k,j)}else startAudio(cur,openItem,rPage,k,j);return}
   const rb=e.target.closest("[data-read]");
   if(rb){const i=+rb.dataset.read;openItem=openItem===i?null:i;zoom=1;renderDay();if(openItem!==null)$("reader").scrollIntoView({block:"start"});return}
   const nb=e.target.closest("[data-nav]");if(nb){nav(+nb.dataset.nav);return}
