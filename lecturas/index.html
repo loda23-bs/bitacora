@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e4d64">
+<title>Plan de lecturas · Baldwin y Schwab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#0b1c22);--ink:light-dark(#14232a,#e7f0f2);--muted:light-dark(#55666d,#9db2b8);
+--band:light-dark(#0e4d64,#0e3442);--bandInk:#f2fafc;--card:light-dark(#f2f7f8,#12313c);--line:light-dark(#d5e2e6,#24485a);
+--acc:#ff6b4a;--accSoft:light-dark(#ffe4dd,#4a2a22);--field:light-dark(#ffffff,#0b1c22);--ok:light-dark(#0e7a55,#5fd6a6)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Literata,Georgia,serif;font-weight:700;line-height:1.1;text-wrap:balance;margin:0}
+.band{padding:clamp(24px,4vw,48px) max(5vw,16px)}
+.wrap{max-width:1000px;margin:0 auto}
+header.band{background:var(--band);color:var(--bandInk)}
+header h1{font-size:clamp(30px,5vw,44px)}
+header p{margin:8px 0 0;opacity:.85}
+.stats{display:flex;flex-wrap:wrap;gap:12px 28px;margin-top:22px}
+.stat b{display:block;font-size:26px;font-family:Literata,serif;white-space:nowrap}
+.stat span{font-size:13px;opacity:.8}
+.meter{height:10px;background:rgba(255,255,255,.18);border-radius:6px;margin-top:18px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--acc);border-radius:6px;transition:width .5s}
+.acct{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:18px;font-size:14px}
+.acct .pill{background:rgba(255,255,255,.14);padding:6px 12px;border-radius:999px}
+.linkbtn{background:none;border:0;color:var(--bandInk);text-decoration:underline;font:inherit;cursor:pointer;min-height:44px;padding:0 4px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:16px max(5vw,16px) 4px;max-width:1000px;margin:0 auto}
+.tab{flex:none;min-height:44px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:500 15px Inter,sans-serif;cursor:pointer;white-space:nowrap}
+.tab[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab.done::after{content:" ✓";color:var(--acc);font-weight:700}
+.tab.write{border-style:dashed}
+.tab:focus-visible,button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.day{background:var(--card);border-radius:18px;padding:clamp(18px,3vw,30px);border-left:8px solid var(--acc)}
+.dayhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:baseline}
+.dayhead h2{font-size:clamp(26px,4vw,34px)}
+.meta{color:var(--muted);font-size:14px;white-space:nowrap}
+.read{display:grid;gap:14px;margin-top:18px}
+.item{background:var(--field);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 18px;align-items:start}
+.item .book{font-size:13px;color:var(--muted)}
+.item h3{font-size:20px;margin:2px 0 6px}
+.item ul{margin:0;padding-left:18px;color:var(--muted);font-size:15px}
+.pages{text-align:right}
+.pages b{display:block;font-family:Literata,serif;font-size:clamp(26px,5vw,36px);line-height:1;white-space:nowrap;color:var(--acc)}
+.pages span{font-size:12px;color:var(--muted);white-space:nowrap}
+.bm{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:var(--muted);grid-column:1/-1}
+.bm input{width:90px;min-height:40px;padding:6px 10px;border-radius:8px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:16px Inter,sans-serif}
+.check{display:flex;align-items:center;gap:10px;margin-top:14px;min-height:44px;font-weight:600;cursor:pointer}
+.check input{width:24px;height:24px;accent-color:var(--acc);flex:none}
+.tip{margin-top:10px;font-size:14px;color:var(--muted)}
+.timer{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:16px;padding:14px 16px;border-radius:14px;background:var(--field);border:1px solid var(--line)}
+.timer b{font-family:Literata,serif;font-size:34px;line-height:1;font-variant-numeric:tabular-nums;min-width:4ch}
+.timer .lbl{font-size:13px;color:var(--muted);flex-basis:100%}
+.wlist{display:grid;gap:10px;margin-top:16px}
+.witem{display:flex;gap:12px;align-items:flex-start;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
+.witem input{width:24px;height:24px;accent-color:var(--acc);flex:none;margin-top:2px}
+.witem b{display:block}.witem span{font-size:14px;color:var(--muted)}
+.witem.today{border-color:var(--acc);border-width:2px}
+section.notes h2{font-size:clamp(24px,3.5vw,30px);margin-bottom:6px}
+.chap{border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:18px}
+.chap h3{font-size:20px}
+.chap .sub{font-size:13px;color:var(--muted);margin:4px 0 12px}
+label.f{display:block;font-weight:600;font-size:15px;margin-top:14px}
+label.f small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+textarea{width:100%;margin-top:6px;min-height:120px;padding:12px;border-radius:10px;border:1.5px solid var(--line);background:var(--field);color:var(--ink);font:16px/1.5 Inter,sans-serif;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.btn{min-height:44px;padding:8px 16px;border-radius:10px;border:0;background:var(--ink);color:var(--bg);font:600 15px Inter,sans-serif;cursor:pointer}
+.btn.alt{background:var(--accSoft);color:var(--ink)}
+.btn.sm{min-height:40px;padding:6px 12px;font-size:14px}
+.count,.save{font-size:13px;color:var(--muted)}
+.save.ok{color:var(--ok)}
+.ref p{margin:0 0 10px;padding-left:2em;text-indent:-2em}
+.ref ul{padding-left:18px;color:var(--muted)}
+footer{font-size:13px;color:var(--muted);text-align:center;padding:24px 16px 40px}
+dialog{border:0;border-radius:18px;padding:24px;max-width:400px;width:calc(100% - 32px);background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(5,20,26,.55)}
+dialog h2{font-size:24px;margin-bottom:6px}
+dialog p{font-size:14px;color:var(--muted);margin:0 0 12px}
+dialog input{display:block;width:100%;min-height:44px;margin-top:6px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--field);color:var(--ink);font:16px Inter,sans-serif}
+dialog label{display:block;font-weight:600;font-size:14px;margin-top:12px}
+.err{color:#d6402a;font-size:14px;min-height:1.2em;margin-top:10px}
+@media(max-width:600px){.item{grid-template-columns:1fr}.pages{text-align:left}}
+@media(prefers-reduced-motion:reduce){.meter i{transition:none}}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <h1>Plan de lecturas: 5 días, 6 capítulos</h1>
+    <p>Baldwin (caps. 6, 7 y 10) y Schwab (caps. 1, 2 y 3) · Entrega en Moodle: 2 de diciembre</p>
+    <div class="stats">
+      <div class="stat"><b id="sDays">0 de 5</b><span>días leídos</span></div>
+      <div class="stat"><b id="sNotes">0 de 6</b><span>capítulos con notas</span></div>
+      <div class="stat"><b id="sWrite">0 de 8</b><span>pasos de escritura</span></div>
+      <div class="stat"><b id="sDue">–</b><span>para la entrega</span></div>
+    </div>
+    <div class="meter" aria-hidden="true"><i id="bar"></i></div>
+    <div class="acct" id="acct"></div>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs" role="tablist" aria-label="Días"></nav>
+
+<main>
+  <div class="band" style="padding-top:16px"><div class="wrap" id="dayView"></div></div>
+  <section class="band notes" style="padding-top:0" id="notesSec"><div class="wrap">
+    <h2>Mis anotaciones</h2>
+    <p class="count">Cada caja es una parte del trabajo: 3 hojas de resumen, 1 de conclusión y 1 de opinión por capítulo. <span class="save" id="saveState"></span></p>
+    <div id="notesView"></div>
+  </div></section>
+  <section class="band" style="padding-top:0"><div class="wrap">
+    <div class="row"><button class="btn alt" id="copyAll">Copiar todas mis notas</button><button class="btn alt" id="dlAll">Descargar notas (.txt)</button><span class="save" id="copyMsg"></span></div>
+  </div></section>
+  <section class="band ref" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:24px;margin-bottom:12px">Referencias (APA)</h2>
+    <p>Baldwin, R. (2019). <i>La convulsión globótica</i>. Antoni Bosch.</p>
+    <p>Schwab, K. (2016). <i>La cuarta revolución industrial</i>. Foro Económico Mundial.</p>
+    <ul>
+      <li>Sin carátula. Primera hoja: título del libro y nombre (apellido primero).</li>
+      <li>Times New Roman 12, espacio 1.5. 30 páginas en total, en estilo APA. Se sube a Moodle.</li>
+    </ul>
+  </div></section>
+</main>
+<footer>Las páginas son las del PDF (las que muestra tu lector), no las del libro impreso.</footer>
+
+<dialog id="login">
+  <form id="loginForm" method="dialog">
+    <h2>Entrar</h2>
+    <p>Con tu cuenta, tus notas se sincronizan entre tu celular y tu computadora. Usa el mismo correo de la Bitácora.</p>
+    <label for="lEmail">Correo</label><input id="lEmail" type="email" autocomplete="email" required>
+    <label for="lPass">Contraseña</label><input id="lPass" type="password" autocomplete="current-password" required minlength="6">
+    <div class="err" id="lErr"></div>
+    <div class="row"><button class="btn" type="submit" id="lGo">Entrar</button><button class="btn alt" type="button" id="lCancel">Cancelar</button></div>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+{
+const SUPABASE_URL='https://zjqkllhnwaxeznskyvok.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_qxicgEPIwS7hlVfJD7YbCQ_l2ulIa9R';
+const PLAN='baldwin-schwab';
+const LS='planLecturas';
+
+const CH={
+ s1:{book:"Schwab · La cuarta revolución industrial",t:"Cap. 1 · La cuarta revolución industrial",cite:"(Schwab, 2016, p. )"},
+ s2:{book:"Schwab · La cuarta revolución industrial",t:"Cap. 2 · Impulsores",cite:"(Schwab, 2016, p. )"},
+ s3:{book:"Schwab · La cuarta revolución industrial",t:"Cap. 3 · Impacto",cite:"(Schwab, 2016, p. )"},
+ b6:{book:"Baldwin · La convulsión globótica",t:"Cap. 6 · La automatización y la transformación globótica",cite:"(Baldwin, 2019, p. )"},
+ b7:{book:"Baldwin · La convulsión globótica",t:"Cap. 7 · La convulsión globótica",cite:"(Baldwin, 2019, p. )"},
+ b10:{book:"Baldwin · La convulsión globótica",t:"Cap. 10 · El futuro no concierta citas: preparación para los nuevos empleos",cite:"(Baldwin, 2019, p. )"}
+};
+const DAYS=[
+ {id:"d1",tab:"Jue 19",title:"Jueves 19 de noviembre",date:"2026-11-19",words:7100,tip:"Día corto: úsalo para entender el marco general de Schwab.",
+  items:[{ch:"s1",p:"12–17",sec:["1.1 Contexto histórico (p. 12)","1.2 Un cambio profundo y sistémico (p. 14)"]},
+         {ch:"s2",p:"18–28",sec:["2.1 Megatendencias (p. 18)","2.2 Puntos de inflexión"]}]},
+ {id:"d2",tab:"Vie 20",title:"Viernes 20 de noviembre",date:"2026-11-20",words:12000,tip:"Para al llegar al subtítulo 3.3 (Nacional y global), en la p. 57.",
+  items:[{ch:"s3",p:"29–57",sec:["3.1 Economía (p. 29)","3.2 Negocios (p. 45)"]}]},
+ {id:"d3",tab:"Sáb 21",title:"Sábado 21 de noviembre",date:"2026-11-21",words:13000,tip:"Al terminar, cierra tus notas del cap. 3 completo: conclusión y opinión.",
+  items:[{ch:"s3",p:"57–83",sec:["3.3 Nacional y global (p. 57)","3.4 Sociedad (p. 73)","3.5 El individuo (p. 78)"]}]},
+ {id:"d4",tab:"Dom 22",title:"Domingo 22 de noviembre",date:"2026-11-22",words:13300,tip:"Las últimas páginas del capítulo son notas al pie: léelas solo si necesitas una fuente.",
+  items:[{ch:"b6",p:"144–179",sec:["Capítulo completo"]}]},
+ {id:"d5",tab:"Lun 23",title:"Lunes 23 de noviembre",date:"2026-11-23",words:13200,tip:"Último día de lectura. Mañana empiezas a escribir.",
+  items:[{ch:"b7",p:"180–203",sec:["Capítulo completo"]},{ch:"b10",p:"258–269",sec:["Capítulo completo"]}]}
+];
+const WRITE=[
+ {id:"w1",date:"2026-11-24",d:"Mar 24",t:"Schwab cap. 1",s:"3 hojas de resumen, 1 de conclusión, 1 de opinión (5 páginas)"},
+ {id:"w2",date:"2026-11-25",d:"Mié 25",t:"Schwab cap. 2",s:"5 páginas"},
+ {id:"w3",date:"2026-11-26",d:"Jue 26",t:"Schwab cap. 3",s:"5 páginas. Es el capítulo más largo: elige solo las ideas más fuertes."},
+ {id:"w4",date:"2026-11-27",d:"Vie 27",t:"Baldwin cap. 6",s:"5 páginas"},
+ {id:"w5",date:"2026-11-28",d:"Sáb 28",t:"Baldwin cap. 7",s:"5 páginas"},
+ {id:"w6",date:"2026-11-29",d:"Dom 29",t:"Baldwin cap. 10",s:"5 páginas"},
+ {id:"w7",date:"2026-11-30",d:"Lun 30",t:"Primera hoja, citas y referencias",s:"Título del libro y nombre (apellido primero). Revisa cada cita (autor, año, p.) y la lista de referencias en APA."},
+ {id:"w8",date:"2026-12-01",d:"Mar 1 dic",t:"Revisión final y subir a Moodle",s:"Times New Roman 12, espacio 1.5, 30 páginas. Sube un día antes para no arriesgarte."}
+];
+const FIELDS=[
+ ["ideas","Ideas clave (para las 3 hojas de resumen)","Ideas principales con tus palabras. Anota la página junto a cada idea."],
+ ["concl","Conclusión del autor (1 hoja)","¿Qué concluye el autor al final del capítulo?"],
+ ["opin","Mi opinión: viabilidad de la Administración (1 hoja)","¿Qué significa esto para el administrador y para las empresas?"],
+ ["citas","Citas textuales y páginas (APA)","Ejemplo: «texto» (Schwab, 2016, p. 31)"]
+];
+const blank=()=>({notes:{},done:{},bm:{},write:{},ts:0});
+let state=blank(), cur=null, sb=null, session=null, timer=null, syncing=false;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mins=w=>{const m=Math.round(w/200*1.3/5)*5;return Math.floor(m/60)+" h "+String(m%60).padStart(2,"0")+" min"};
+const wc=s=>(s||"").trim().split(/\s+/).filter(Boolean).length;
+const todayKey=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+
+try{const l=localStorage.getItem(LS);if(l)state=Object.assign(blank(),JSON.parse(l))}catch(e){}
+
+function startId(){
+  const k=todayKey();const f=DAYS.find(x=>x.date===k);if(f)return f.id;
+  if(k>"2026-11-23")return "write";
+  const n=DAYS.find(x=>!state.done[x.id]);return n?n.id:DAYS[0].id;
+}
+function renderTabs(){
+  $("tabs").innerHTML=DAYS.map(d=>`<button class="tab${state.done[d.id]?" done":""}" role="tab" aria-selected="${d.id===cur}" data-id="${d.id}">${d.tab}</button>`).join("")
+   +`<button class="tab write${WRITE.every(w=>state.write[w.id])?" done":""}" role="tab" aria-selected="${cur==="write"}" data-id="write">Escritura 24 nov–1 dic</button>`;
+}
+function timerHTML(){return `<div class="timer" id="timer"><span class="lbl" id="tLbl">Bloque de lectura de 25 min, luego 5 min de descanso</span><b id="tTime">25:00</b><button class="btn sm" id="tGo">Iniciar</button><button class="btn sm alt" id="tReset">Reiniciar</button><span class="count" id="tCount"></span></div>`}
+function renderDay(){
+  if(cur==="write"){
+    const k=todayKey();
+    $("dayView").innerHTML=`<article class="day"><div class="dayhead"><h2>Plan de escritura</h2><span class="meta">8 días · 30 páginas</span></div>
+      <p class="tip">Un capítulo por día (5 páginas). Usa tus anotaciones de abajo como base.</p>
+      <div class="wlist">${WRITE.map(w=>`<label class="witem${w.date===k?" today":""}"><input type="checkbox" data-w="${w.id}" ${state.write[w.id]?"checked":""}><div><b>${w.d} · ${w.t}</b><span>${w.s}</span></div></label>`).join("")}</div></article>`;
+    return;
+  }
+  const d=DAYS.find(x=>x.id===cur);
+  $("dayView").innerHTML=`<article class="day">
+    <div class="dayhead"><h2>${d.title}</h2><span class="meta">≈ ${d.words.toLocaleString("es-MX")} palabras · ${mins(d.words)}</span></div>
+    <div class="read">${d.items.map((it,i)=>`<div class="item"><div><div class="book">${CH[it.ch].book}</div><h3>${CH[it.ch].t}</h3><ul>${it.sec.map(s=>`<li>${s}</li>`).join("")}</ul></div>
+      <div class="pages"><b>${it.p}</b><span>páginas del PDF</span></div>
+      <label class="bm">Voy en la página <input type="number" inputmode="numeric" data-bm="${d.id}-${i}" value="${esc(state.bm[d.id+"-"+i])}"></label></div>`).join("")}</div>
+    <p class="tip">${d.tip}</p>
+    ${timerHTML()}
+    <label class="check"><input type="checkbox" id="doneBox" ${state.done[d.id]?"checked":""}> Terminé la lectura de este día</label>
+  </article>`;
+  paintTimer();
+}
+function notesFor(){
+  if(cur==="write")return Object.keys(CH);
+  return [...new Set(DAYS.find(x=>x.id===cur).items.map(i=>i.ch))];
+}
+function renderNotes(){
+  const ids=notesFor();
+  $("notesView").innerHTML=ids.map(id=>{const n=state.notes[id]||{};return `<div class="chap">
+    <h3>${CH[id].t}</h3><div class="sub">${CH[id].book}${id==="s3"&&cur!=="write"?" · estas notas se comparten entre viernes y sábado":""}</div>
+    ${FIELDS.map(([k,l,h])=>`<label class="f" for="n-${id}-${k}">${l}<small>${h}</small></label><textarea id="n-${id}-${k}" data-ch="${id}" data-k="${k}">${esc(n[k])}</textarea>`).join("")}
+    <div class="row"><button class="btn sm" data-copy="${id}">Copiar notas del capítulo</button><span class="count" id="c-${id}"></span></div></div>`}).join("");
+  ids.forEach(updCount);
+}
+function updCount(id){const n=state.notes[id]||{};const el=$("c-"+id);if(el)el.textContent=FIELDS.reduce((a,[k])=>a+wc(n[k]),0)+" palabras escritas"}
+function renderStats(){
+  const dn=DAYS.filter(d=>state.done[d.id]).length;
+  const nn=Object.keys(CH).filter(k=>{const n=state.notes[k]||{};return FIELDS.some(([f])=>(n[f]||"").trim())}).length;
+  const wn=WRITE.filter(w=>state.write[w.id]).length;
+  $("sDays").textContent=dn+" de 5";$("sNotes").textContent=nn+" de 6";$("sWrite").textContent=wn+" de 8";
+  $("bar").style.width=((dn/5)*40+(nn/6)*20+(wn/8)*40)+"%";
+  const due=new Date(2026,11,2),now=new Date();now.setHours(0,0,0,0);
+  const left=Math.round((due-now)/864e5);
+  $("sDue").textContent=left>1?left+" días":left===1?"1 día":left===0?"Hoy":"Entregado";
+}
+function renderAcct(){
+  $("acct").innerHTML=!sb?`<span class="pill">Sin conexión: se guarda en este dispositivo</span>`
+   :session?`<span class="pill">Sincronizado como ${esc(session.user.email)}</span><button class="linkbtn" id="logout">Salir</button>`
+   :`<span class="pill">Guardado solo en este dispositivo</span><button class="linkbtn" id="openLogin">Entrar para sincronizar</button>`;
+}
+function renderAll(){renderTabs();renderDay();renderNotes();renderStats();renderAcct()}
+
+/* ---------- guardar ---------- */
+function setSave(t,ok){const e=$("saveState");e.textContent=t;e.classList.toggle("ok",!!ok)}
+function persist(){
+  state.ts=Date.now();
+  try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}
+  clearTimeout(timer);
+  if(!session){setSave("Guardado en este dispositivo ✓",true);return}
+  setSave("Guardando…");
+  timer=setTimeout(pushRemote,1200);
+}
+async function pushRemote(){
+  if(!session||syncing)return;
+  syncing=true;
+  try{
+    const {error}=await sb.from("notas_lectura").upsert({user_id:session.user.id,plan:PLAN,data:state,updated_at:new Date().toISOString()});
+    setSave(error?"No se pudo sincronizar; quedó guardado en este dispositivo":"Guardado en tu cuenta ✓",!error);
+  }catch(e){setSave("Sin internet; quedó guardado en este dispositivo")}
+  syncing=false;
+}
+async function pullRemote(){
+  if(!session)return;
+  try{
+    const {data,error}=await sb.from("notas_lectura").select("data").eq("plan",PLAN).maybeSingle();
+    if(error)return;
+    const r=data&&data.data;
+    if(r&&(r.ts||0)>(state.ts||0)){
+      state=Object.assign(blank(),r);
+      try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}
+      const a=document.activeElement;if(!(a&&a.tagName==="TEXTAREA"))renderAll();else{renderStats();renderAcct()}
+      setSave("Notas cargadas de tu cuenta ✓",true);
+    }else{await pushRemote()}
+  }catch(e){}
+}
+
+/* ---------- temporizador ---------- */
+let tLeft=25*60,tMode="read",tRun=null,tDone=0;
+const fmt=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+function paintTimer(){
+  if(!$("tTime"))return;
+  $("tTime").textContent=fmt(tLeft);
+  $("tGo").textContent=tRun?"Pausar":"Iniciar";
+  $("tLbl").textContent=tMode==="read"?"Bloque de lectura de 25 min, luego 5 min de descanso":"Descanso de 5 min: levántate y estírate";
+  $("tCount").textContent=tDone?tDone+" bloque"+(tDone>1?"s":"")+" completado"+(tDone>1?"s":""):"";
+}
+function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)();const o=c.createOscillator();o.frequency.value=880;o.connect(c.destination);o.start();setTimeout(()=>{o.stop();c.close()},400)}catch(e){}try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
+function tick(){
+  tLeft--;
+  if(tLeft<=0){beep();if(tMode==="read"){tDone++;tMode="rest";tLeft=5*60}else{tMode="read";tLeft=25*60}}
+  paintTimer();document.title=tRun?fmt(tLeft)+" · Plan de lecturas":"Plan de lecturas · Baldwin y Schwab";
+}
+
+/* ---------- copiar / descargar ---------- */
+function chapText(id){const n=state.notes[id]||{};return CH[id].book+"\n"+CH[id].t+"\n\n"+FIELDS.map(([k,l])=>l.toUpperCase()+"\n"+(n[k]||"")).join("\n\n")}
+const allText=()=>"Barrera Severo, Logan David\n\n"+Object.keys(CH).map(chapText).join("\n\n————————\n\n");
+async function copy(text,el){
+  try{await navigator.clipboard.writeText(text);el.textContent="Copiado ✓"}
+  catch(e){el.textContent="No se pudo copiar. Usa «Descargar notas»."}
+  setTimeout(()=>{el.textContent=""},2500);
+}
+
+/* ---------- eventos ---------- */
+$("tabs").addEventListener("click",e=>{const b=e.target.closest(".tab");if(!b)return;cur=b.dataset.id;try{history.replaceState(null,"","#"+cur)}catch(_){}renderTabs();renderDay();renderNotes()});
+$("dayView").addEventListener("change",e=>{
+  const t=e.target;
+  if(t.id==="doneBox"){state.done[cur]=t.checked;renderTabs();renderStats();persist()}
+  if(t.dataset.w){state.write[t.dataset.w]=t.checked;renderTabs();renderStats();persist()}
+});
+$("dayView").addEventListener("input",e=>{const t=e.target;if(t.dataset.bm!==undefined){state.bm[t.dataset.bm]=t.value;persist()}});
+$("dayView").addEventListener("click",e=>{
+  if(e.target.id==="tGo"){if(tRun){clearInterval(tRun);tRun=null}else{tRun=setInterval(tick,1000)}paintTimer()}
+  if(e.target.id==="tReset"){clearInterval(tRun);tRun=null;tMode="read";tLeft=25*60;paintTimer();document.title="Plan de lecturas · Baldwin y Schwab"}
+});
+$("notesView").addEventListener("input",e=>{const t=e.target;if(t.tagName!=="TEXTAREA")return;
+  const id=t.dataset.ch;state.notes[id]=state.notes[id]||{};state.notes[id][t.dataset.k]=t.value;updCount(id);renderStats();persist()});
+$("notesView").addEventListener("click",e=>{const b=e.target.closest("[data-copy]");if(!b)return;copy(chapText(b.dataset.copy),$("c-"+b.dataset.copy))});
+$("copyAll").addEventListener("click",()=>copy(allText(),$("copyMsg")));
+$("dlAll").addEventListener("click",()=>{
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([allText()],{type:"text/plain;charset=utf-8"}));
+  a.download="notas-baldwin-schwab.txt";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+});
+$("acct").addEventListener("click",async e=>{
+  if(e.target.id==="openLogin"){$("lErr").textContent="";try{$("login").showModal()}catch(_){$("login").setAttribute("open","")}}
+  if(e.target.id==="logout"){await sb.auth.signOut();session=null;renderAcct();setSave("Guardado en este dispositivo ✓",true)}
+});
+$("lCancel").addEventListener("click",()=>$("login").close());
+$("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();$("lErr").textContent="";$("lGo").disabled=true;
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:$("lEmail").value.trim(),password:$("lPass").value});
+    if(error){$("lErr").textContent=error.message.includes("Invalid")?"Correo o contraseña incorrectos.":error.message}
+    else{session=data.session;$("login").close();renderAcct();await pullRemote()}
+  }catch(err){$("lErr").textContent="Sin conexión. Intenta de nuevo."}
+  $("lGo").disabled=false;
+});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&session){clearTimeout(timer);pushRemote()}else if(document.visibilityState==="visible"&&session){pullRemote()}});
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(h==="write"||DAYS.some(d=>d.id===h)){cur=h;renderAll()}});
+
+const h=location.hash.slice(1);cur=(h==="write"||DAYS.some(d=>d.id===h))?h:startId();
+try{if(window.supabase)sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){sb=null}
+renderAll();setSave("Guardado en este dispositivo ✓",true);
+if(sb){(async()=>{try{const {data}=await sb.auth.getSession();session=data.session;renderAcct();if(session)await pullRemote()}catch(e){}})()}
+}
+</script>
+</body>
+</html>
