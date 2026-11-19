@@ -12,6 +12,7 @@ Plan de 5 días para leer 6 capítulos y escribir el trabajo individual (entrega
 - Anotaciones por capítulo: ideas clave, conclusión, opinión y citas APA
 - Plan de escritura del 24 de noviembre al 1 de diciembre
 - Copiar o descargar todas las notas en .txt
+- Lector integrado: botón "Leer aquí" que muestra solo las páginas del día. El PDF se carga desde el dispositivo una sola vez y se guarda en el navegador (IndexedDB); los libros no se suben al repositorio porque son públicos y tienen derechos de autor.
 
 ## Dónde se guardan las notas
 

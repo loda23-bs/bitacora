@@ -82,7 +82,17 @@ dialog p{font-size:14px;color:var(--muted);margin:0 0 12px}
 dialog input{display:block;width:100%;min-height:44px;margin-top:6px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--field);color:var(--ink);font:16px Inter,sans-serif}
 dialog label{display:block;font-weight:600;font-size:14px;margin-top:12px}
 .err{color:#d6402a;font-size:14px;min-height:1.2em;margin-top:10px}
-@media(max-width:600px){.item{grid-template-columns:1fr}.pages{text-align:left}}
+.rbtn{grid-column:1/-1;justify-self:start;margin-top:8px}
+.reader{grid-column:1/-1;margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.rbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2;background:var(--field);padding:6px 0}
+.rbar .pg{font-size:14px;color:var(--muted);white-space:nowrap;text-align:center;flex:1}
+.rgrp{display:flex;gap:6px}
+.sheet{margin-top:8px;background:#fff;border-radius:6px;box-shadow:0 2px 14px rgba(0,0,0,.15);overflow:auto;max-height:85vh;touch-action:pan-x pan-y pinch-zoom}
+.sheet canvas{display:block;margin:0 auto}
+.load{margin-top:8px;padding:16px;border:2px dashed var(--line);border-radius:12px;font-size:15px}
+.load input{display:block;margin-top:10px;font:15px Inter,sans-serif;max-width:100%}
+.load small{display:block;color:var(--muted);margin-top:8px}
+@media(max-width:600px){.item{grid-template-columns:1fr;padding:14px 10px}.day{padding:16px 10px;border-left-width:5px}.pages{text-align:left}}
 @media(prefers-reduced-motion:reduce){.meter i{transition:none}}
 </style>
 </head>
@@ -155,16 +165,16 @@ const CH={
 };
 const DAYS=[
  {id:"d1",tab:"Jue 19",title:"Jueves 19 de noviembre",date:"2026-11-19",words:7100,tip:"Día corto: úsalo para entender el marco general de Schwab.",
-  items:[{ch:"s1",p:"12–17",sec:["1.1 Contexto histórico (p. 12)","1.2 Un cambio profundo y sistémico (p. 14)"]},
-         {ch:"s2",p:"18–28",sec:["2.1 Megatendencias (p. 18)","2.2 Puntos de inflexión"]}]},
+  items:[{ch:"s1",bk:"schwab",a:12,b:17,p:"12–17",sec:["1.1 Contexto histórico (p. 12)","1.2 Un cambio profundo y sistémico (p. 14)"]},
+         {ch:"s2",bk:"schwab",a:18,b:28,p:"18–28",sec:["2.1 Megatendencias (p. 18)","2.2 Puntos de inflexión"]}]},
  {id:"d2",tab:"Vie 20",title:"Viernes 20 de noviembre",date:"2026-11-20",words:12000,tip:"Para al llegar al subtítulo 3.3 (Nacional y global), en la p. 57.",
-  items:[{ch:"s3",p:"29–57",sec:["3.1 Economía (p. 29)","3.2 Negocios (p. 45)"]}]},
+  items:[{ch:"s3",bk:"schwab",a:29,b:57,p:"29–57",sec:["3.1 Economía (p. 29)","3.2 Negocios (p. 45)"]}]},
  {id:"d3",tab:"Sáb 21",title:"Sábado 21 de noviembre",date:"2026-11-21",words:13000,tip:"Al terminar, cierra tus notas del cap. 3 completo: conclusión y opinión.",
-  items:[{ch:"s3",p:"57–83",sec:["3.3 Nacional y global (p. 57)","3.4 Sociedad (p. 73)","3.5 El individuo (p. 78)"]}]},
+  items:[{ch:"s3",bk:"schwab",a:57,b:83,p:"57–83",sec:["3.3 Nacional y global (p. 57)","3.4 Sociedad (p. 73)","3.5 El individuo (p. 78)"]}]},
  {id:"d4",tab:"Dom 22",title:"Domingo 22 de noviembre",date:"2026-11-22",words:13300,tip:"Las últimas páginas del capítulo son notas al pie: léelas solo si necesitas una fuente.",
-  items:[{ch:"b6",p:"144–179",sec:["Capítulo completo"]}]},
+  items:[{ch:"b6",bk:"baldwin",a:144,b:179,p:"144–179",sec:["Capítulo completo"]}]},
  {id:"d5",tab:"Lun 23",title:"Lunes 23 de noviembre",date:"2026-11-23",words:13200,tip:"Último día de lectura. Mañana empiezas a escribir.",
-  items:[{ch:"b7",p:"180–203",sec:["Capítulo completo"]},{ch:"b10",p:"258–269",sec:["Capítulo completo"]}]}
+  items:[{ch:"b7",bk:"baldwin",a:180,b:203,p:"180–203",sec:["Capítulo completo"]},{ch:"b10",bk:"baldwin",a:258,b:269,p:"258–269",sec:["Capítulo completo"]}]}
 ];
 const WRITE=[
  {id:"w1",date:"2026-11-24",d:"Mar 24",t:"Schwab cap. 1",s:"3 hojas de resumen, 1 de conclusión, 1 de opinión (5 páginas)"},
@@ -215,13 +225,74 @@ function renderDay(){
     <div class="dayhead"><h2>${d.title}</h2><span class="meta">≈ ${d.words.toLocaleString("es-MX")} palabras · ${mins(d.words)}</span></div>
     <div class="read">${d.items.map((it,i)=>`<div class="item"><div><div class="book">${CH[it.ch].book}</div><h3>${CH[it.ch].t}</h3><ul>${it.sec.map(s=>`<li>${s}</li>`).join("")}</ul></div>
       <div class="pages"><b>${it.p}</b><span>páginas del PDF</span></div>
-      <label class="bm">Voy en la página <input type="number" inputmode="numeric" data-bm="${d.id}-${i}" value="${esc(state.bm[d.id+"-"+i])}"></label></div>`).join("")}</div>
+      <label class="bm">Voy en la página <input type="number" inputmode="numeric" data-bm="${d.id}-${i}" value="${esc(state.bm[d.id+"-"+i])}"></label>
+      <button class="btn sm rbtn" data-read="${i}">${openItem===i?"Cerrar lectura":"Leer aquí"}</button>
+      ${openItem===i?`<div class="reader" id="reader"></div>`:""}</div>`).join("")}</div>
     <p class="tip">${d.tip}</p>
     ${timerHTML()}
     <label class="check"><input type="checkbox" id="doneBox" ${state.done[d.id]?"checked":""}> Terminé la lectura de este día</label>
   </article>`;
   paintTimer();
+  if(openItem!==null)openReader();
 }
+
+/* ---------- lector de PDF (el archivo se queda en tu dispositivo) ---------- */
+const BOOKS={schwab:{name:"La cuarta revolución industrial (Schwab)",pages:149},baldwin:{name:"La convulsión globótica (Baldwin)",pages:269}};
+const PDFJS="https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/";
+let openItem=null,pdfLib=null,docs={},rPage=null,zoom=1,renderTask=null;
+function idb(){return new Promise((ok,no)=>{const r=indexedDB.open("lecturasPDF",1);r.onupgradeneeded=()=>r.result.createObjectStore("books");r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+async function idbGet(k){const db=await idb();return new Promise((ok,no)=>{const q=db.transaction("books").objectStore("books").get(k);q.onsuccess=()=>ok(q.result||null);q.onerror=()=>no(q.error)})}
+async function idbPut(k,v){const db=await idb();return new Promise((ok,no)=>{const t=db.transaction("books","readwrite");t.objectStore("books").put(v,k);t.oncomplete=()=>ok();t.onerror=()=>no(t.error)})}
+async function lib(){
+  if(!pdfLib){pdfLib=await import(PDFJS+"pdf.min.mjs");pdfLib.GlobalWorkerOptions.workerSrc=PDFJS+"pdf.worker.min.mjs"}
+  return pdfLib;
+}
+async function getDoc(bk){
+  if(docs[bk])return docs[bk];
+  let buf=null;try{buf=await idbGet(bk)}catch(e){}
+  if(!buf)return null;
+  const L=await lib();docs[bk]=await L.getDocument({data:new Uint8Array(buf)}).promise;return docs[bk];
+}
+function curItem(){return DAYS.find(x=>x.id===cur).items[openItem]}
+async function openReader(){
+  const el=$("reader");if(!el)return;
+  const it=curItem();
+  el.innerHTML=`<p class="count">Abriendo…</p>`;
+  let doc=null;
+  try{doc=await getDoc(it.bk)}catch(e){el.innerHTML=`<p class="err">No se pudo abrir el lector. Revisa tu conexión a internet e intenta de nuevo.</p>`;return}
+  if(!doc){
+    el.innerHTML=`<div class="load"><b>Carga el PDF de ${BOOKS[it.bk].name}</b>
+      <small>Solo una vez por dispositivo. El PDF se guarda en este navegador y no se sube a internet.</small>
+      <input type="file" accept="application/pdf,.pdf" data-load="${it.bk}"><div class="err" id="loadErr"></div></div>`;
+    return;
+  }
+  const saved=parseInt(state.bm[cur+"-"+openItem],10);
+  rPage=(saved>=it.a&&saved<=it.b)?saved:it.a;
+  el.innerHTML=`<div class="rbar"><div class="rgrp"><button class="btn sm" data-nav="-1" aria-label="Página anterior">←</button></div>
+    <span class="pg" id="rInfo"></span>
+    <div class="rgrp"><button class="btn sm alt" data-zoom="-1" aria-label="Alejar">−</button><button class="btn sm alt" data-zoom="1" aria-label="Acercar">+</button><button class="btn sm" data-nav="1" aria-label="Página siguiente">→</button></div></div>
+    <div class="sheet" id="sheet"><canvas id="cv"></canvas></div>`;
+  drawPage();
+}
+async function drawPage(){
+  const it=curItem(),doc=docs[it.bk],sheet=$("sheet"),cv=$("cv");if(!doc||!cv)return;
+  if(rPage>doc.numPages){$("rInfo").textContent="Este PDF no tiene la página "+rPage+". ¿Cargaste el libro correcto?";return}
+  $("rInfo").textContent=`p. ${rPage} · ${rPage-it.a+1} de ${it.b-it.a+1}`;
+  state.bm[cur+"-"+openItem]=String(rPage);
+  const bmIn=document.querySelector(`[data-bm="${cur}-${openItem}"]`);if(bmIn)bmIn.value=rPage;
+  persist();
+  const page=await doc.getPage(rPage);
+  const base=page.getViewport({scale:1});
+  const W=Math.max(200,sheet.clientWidth);
+  const scale=W/base.width*zoom,dpr=Math.min(window.devicePixelRatio||1,3);
+  const vp=page.getViewport({scale:scale*dpr});
+  if(renderTask){try{renderTask.cancel()}catch(e){}}
+  cv.width=vp.width;cv.height=vp.height;cv.style.width=(vp.width/dpr)+"px";cv.style.height=(vp.height/dpr)+"px";
+  renderTask=page.render({canvasContext:cv.getContext("2d"),viewport:vp,canvas:cv});
+  try{await renderTask.promise}catch(e){}
+  sheet.scrollTop=0;
+}
+function nav(n){const it=curItem();const p=rPage+n;if(p<it.a||p>it.b)return;rPage=p;drawPage();$("reader").scrollIntoView({block:"start",behavior:"smooth"})}
 function notesFor(){
   if(cur==="write")return Object.keys(CH);
   return [...new Set(DAYS.find(x=>x.id===cur).items.map(i=>i.ch))];
@@ -313,14 +384,29 @@ async function copy(text,el){
 }
 
 /* ---------- eventos ---------- */
-$("tabs").addEventListener("click",e=>{const b=e.target.closest(".tab");if(!b)return;cur=b.dataset.id;try{history.replaceState(null,"","#"+cur)}catch(_){}renderTabs();renderDay();renderNotes()});
+$("tabs").addEventListener("click",e=>{const b=e.target.closest(".tab");if(!b)return;cur=b.dataset.id;openItem=null;try{history.replaceState(null,"","#"+cur)}catch(_){}renderTabs();renderDay();renderNotes()});
 $("dayView").addEventListener("change",e=>{
   const t=e.target;
   if(t.id==="doneBox"){state.done[cur]=t.checked;renderTabs();renderStats();persist()}
   if(t.dataset.w){state.write[t.dataset.w]=t.checked;renderTabs();renderStats();persist()}
 });
+$("dayView").addEventListener("change",async e=>{
+  const t=e.target;if(!t.dataset.load||!t.files||!t.files[0])return;
+  const bk=t.dataset.load,err=$("loadErr");err.textContent="Cargando…";
+  try{
+    const buf=await t.files[0].arrayBuffer();
+    const L=await lib();const doc=await L.getDocument({data:new Uint8Array(buf.slice(0))}).promise;
+    if(doc.numPages!==BOOKS[bk].pages){err.textContent=`Este PDF tiene ${doc.numPages} páginas y el de ${BOOKS[bk].name} tiene ${BOOKS[bk].pages}. Elige el archivo correcto.`;return}
+    try{await idbPut(bk,buf)}catch(x){}
+    docs[bk]=doc;openReader();
+  }catch(x){err.textContent="No se pudo leer el PDF. Revisa tu conexión e intenta de nuevo."}
+});
 $("dayView").addEventListener("input",e=>{const t=e.target;if(t.dataset.bm!==undefined){state.bm[t.dataset.bm]=t.value;persist()}});
 $("dayView").addEventListener("click",e=>{
+  const rb=e.target.closest("[data-read]");
+  if(rb){const i=+rb.dataset.read;openItem=openItem===i?null:i;zoom=1;renderDay();if(openItem!==null)$("reader").scrollIntoView({block:"start"});return}
+  const nb=e.target.closest("[data-nav]");if(nb){nav(+nb.dataset.nav);return}
+  const zb=e.target.closest("[data-zoom]");if(zb){zoom=Math.min(2.5,Math.max(1,zoom+(+zb.dataset.zoom)*0.25));drawPage();return}
   if(e.target.id==="tGo"){if(tRun){clearInterval(tRun);tRun=null}else{tRun=setInterval(tick,1000)}paintTimer()}
   if(e.target.id==="tReset"){clearInterval(tRun);tRun=null;tMode="read";tLeft=25*60;paintTimer();document.title="Plan de lecturas · Baldwin y Schwab"}
 });
@@ -347,9 +433,11 @@ $("loginForm").addEventListener("submit",async e=>{
   $("lGo").disabled=false;
 });
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&session){clearTimeout(timer);pushRemote()}else if(document.visibilityState==="visible"&&session){pullRemote()}});
+document.addEventListener("keydown",e=>{if(openItem===null||/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;if(e.key==="ArrowRight")nav(1);if(e.key==="ArrowLeft")nav(-1)});
+let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{if(openItem!==null&&$("cv"))drawPage()},250)});
 window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(h==="write"||DAYS.some(d=>d.id===h)){cur=h;renderAll()}});
 
-const h=location.hash.slice(1);cur=(h==="write"||DAYS.some(d=>d.id===h))?h:startId();
+openItem=null;const h=location.hash.slice(1);cur=(h==="write"||DAYS.some(d=>d.id===h))?h:startId();
 try{if(window.supabase)sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){sb=null}
 renderAll();setSave("Guardado en este dispositivo ✓",true);
 if(sb){(async()=>{try{const {data}=await sb.auth.getSession();session=data.session;renderAcct();if(session)await pullRemote()}catch(e){}})()}
