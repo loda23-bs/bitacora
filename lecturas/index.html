@@ -88,7 +88,13 @@ dialog label{display:block;font-weight:600;font-size:14px;margin-top:12px}
 .rbar .pg{font-size:14px;color:var(--muted);white-space:nowrap;text-align:center;flex:1}
 .rgrp{display:flex;gap:6px}
 .sheet{margin-top:8px;background:#fff;border-radius:6px;box-shadow:0 2px 14px rgba(0,0,0,.15);overflow:auto;max-height:85vh;touch-action:pan-x pan-y pinch-zoom}
-.sheet canvas{display:block;margin:0 auto}
+.sheet canvas{display:block}
+#cvw{position:relative;margin:0 auto}
+#ov{position:absolute;inset:0;cursor:pointer}
+#ov i{position:absolute;display:block;border-radius:3px;pointer-events:none}
+#ov i.s{background:rgba(64,170,205,.22)}
+#ov i.w{background:rgba(255,107,74,.42);outline:2px solid rgba(255,107,74,.9)}
+.phint{font-size:13px;color:var(--muted);margin:8px 0 0}
 .load{margin-top:8px;padding:16px;border:2px dashed var(--line);border-radius:12px;font-size:15px}
 .load input{display:block;margin-top:10px;font:15px Inter,sans-serif;max-width:100%}
 .load small{display:block;color:var(--muted);margin-top:8px}
@@ -323,7 +329,8 @@ async function openReader(){
     <button class="btn listen" id="listenBtn">▶ Escuchar desde esta página</button>
     <div class="seg" role="group" aria-label="Vista"><button data-view="texto" aria-pressed="${view==="texto"}">Texto</button><button data-view="pdf" aria-pressed="${view==="pdf"}">PDF</button></div>
     <div class="tview" id="tview" ${view==="texto"?"":"hidden"}></div>
-    <div class="sheet" id="sheet" ${view==="pdf"?"":"hidden"}><canvas id="cv"></canvas></div>`;
+    <p class="phint" id="phint" ${view==="pdf"?"":"hidden"}>Toca una palabra de la página para escuchar desde ahí.</p>
+    <div class="sheet" id="sheet" ${view==="pdf"?"":"hidden"}><div id="cvw"><canvas id="cv"></canvas><div id="ov"></div></div></div>`;
   drawPage();
 }
 async function drawPage(){
@@ -334,8 +341,8 @@ async function drawPage(){
   const bmIn=document.querySelector(`[data-bm="${cur}-${openItem}"]`);if(bmIn)bmIn.value=rPage;
   persist();
   document.body.classList.toggle("tv",view==="texto");
-  if(view==="texto"){$("sheet").hidden=true;$("tview").hidden=false;return renderTextPage()}
-  $("sheet").hidden=false;$("tview").hidden=true;
+  if(view==="texto"){$("sheet").hidden=true;$("phint").hidden=true;$("tview").hidden=false;return renderTextPage()}
+  $("sheet").hidden=false;$("phint").hidden=false;$("tview").hidden=true;
   const page=await doc.getPage(rPage);
   const base=page.getViewport({scale:1});
   const W=Math.max(200,sheet.clientWidth);
@@ -346,6 +353,8 @@ async function drawPage(){
   renderTask=page.render({canvasContext:cv.getContext("2d"),viewport:vp,canvas:cv});
   try{await renderTask.promise}catch(e){}
   sheet.scrollTop=0;
+  $("cvw").style.width=cv.style.width;$("cvw").style.height=cv.style.height;
+  await buildPdfLayer(it,rPage,page,page.getViewport({scale}));
 }
 function nav(n){const it=curItem();const p=rPage+n;if(p<it.a||p>it.b)return;rPage=p;drawPage();$("reader").scrollIntoView({block:"start",behavior:"smooth"})}
 
@@ -369,6 +378,60 @@ async function renderTextPage(){
 }
 let userScrollAt=0;
 ["touchmove","wheel"].forEach(ev=>window.addEventListener(ev,()=>{userScrollAt=Date.now()},{passive:true}));
+/* resaltado sobre la imagen del PDF */
+let pdfView=null,pdfMark="";
+const norm=w=>w.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9ñ]/g,"");
+async function pageWordBoxes(bk,n){
+  const k="wb|"+bk+"|"+n;if(textCache.has(k))return textCache.get(k);
+  const pg=await docs[bk].getPage(n);const tc=await pg.getTextContent();
+  const hs=tc.items.filter(i=>i.str.trim()).map(i=>Math.abs(i.transform[3])||i.height).sort((a,b)=>a-b);const med=hs[Math.floor(hs.length/2)]||10;
+  const out=[];
+  for(const it of tc.items){
+    const str=it.str;if(!str.trim())continue;
+    const h=Math.abs(it.transform[3])||it.height;
+    if(/^\s*\d{1,3}\s*$/.test(str)&&h<med*.85)continue;
+    const x=it.transform[4],y=it.transform[5],L=str.length;
+    const re=/\S+/g;let m;
+    while((m=re.exec(str))){out.push({t:m[0],n:norm(m[0]),x0:x+it.width*m.index/L,x1:x+it.width*(m.index+m[0].length)/L,y,h})}
+  }
+  textCache.set(k,out);return out;
+}
+function alignWords(ch,boxes){
+  const map=[],rev=new Map();let p=0;
+  ch.forEach((c,k)=>{map[k]=[];splitWords(c.t).forEach((w,j)=>{
+    const want=norm(w);const got=[];
+    if(want){
+      for(let look=0;look<8&&p+look<boxes.length;look++){
+        const q=p+look,b=boxes[q];
+        if(b.n===want){got.push(q);p=q+1;break}
+        if(want.startsWith(b.n)&&b.n.length>1&&q+1<boxes.length&&want===b.n+boxes[q+1].n){got.push(q,q+1);p=q+2;break}
+      }
+    }
+    map[k][j]=got;got.forEach(q=>rev.set(q,{k,j}));
+  })});
+  return {map,rev};
+}
+async function buildPdfLayer(it,n,page,vp){
+  const {ch}=await getChunks(it.bk,n,it.end);
+  const boxes=await pageWordBoxes(it.bk,n);
+  const {map,rev}=alignWords(ch,boxes);
+  const rects=boxes.map(b=>{const [ax,ay]=vp.convertToViewportPoint(b.x0,b.y+b.h*.82),[bx,by]=vp.convertToViewportPoint(b.x1,b.y-b.h*.25);return {l:Math.min(ax,bx),t:Math.min(ay,by),w:Math.abs(bx-ax),h:Math.abs(by-ay)}});
+  pdfView={day:cur,item:openItem,page:n,map,rev,rects};pdfMark="";$("ov").innerHTML="";
+  highlight(true);
+}
+function pdfHighlight(T,force){
+  const ov=$("ov");
+  if(!ov||!pdfView||$("sheet").hidden||pdfView.day!==P.day||pdfView.item!==P.item||pdfView.page!==T.page){if(ov&&pdfMark){ov.innerHTML="";pdfMark=""}return}
+  const key=T.k+"|"+T.j;if(key===pdfMark&&!force)return;pdfMark=key;
+  const sent=(pdfView.map[T.k]||[]).flat(),word=(pdfView.map[T.k]||[])[T.j]||[];
+  const lines=new Map();
+  for(const q of sent){const r=pdfView.rects[q];const key2=Math.round(r.t/4);const L=lines.get(key2);if(!L)lines.set(key2,{...r});else{const l=Math.min(L.l,r.l),rt=Math.max(L.l+L.w,r.l+r.w);L.l=l;L.w=rt-l;L.t=Math.min(L.t,r.t);L.h=Math.max(L.h,r.h)}}
+  let html="";for(const r of lines.values())html+=`<i class="s" style="left:${r.l-2}px;top:${r.t}px;width:${r.w+4}px;height:${r.h}px"></i>`;
+  for(const q of word){const r=pdfView.rects[q];html+=`<i class="w" id="ovw" style="left:${r.l-2}px;top:${r.t}px;width:${r.w+4}px;height:${r.h}px"></i>`}
+  ov.innerHTML=html;
+  const w=$("ovw");
+  if(w&&Date.now()-userScrollAt>4000){const rr=w.getBoundingClientRect(),sh=$("sheet").getBoundingClientRect(),bottom=Math.min(sh.bottom,innerHeight-($("player").hidden?20:$("player").offsetHeight+24));if(rr.top<Math.max(sh.top,70)||rr.bottom>bottom)w.scrollIntoView({block:"center",behavior:force?"auto":"smooth"})}
+}
 let switching=false;
 function target(e){
   let j=e.off;
@@ -380,6 +443,7 @@ function highlight(force){
   if(!P.on||!e)return;
   const T=target(e);
   if(openItem===P.item&&cur===P.day&&$("reader")&&$("cv")&&rPage!==T.page&&!switching&&T.page<=pItem().b){switching=true;rPage=T.page;Promise.resolve(drawPage()).finally(()=>{switching=false})}
+  if(view==="pdf"){pdfHighlight(T,force);return}
   if(!tv||tv.hidden||!shownPage||shownPage.day!==P.day||shownPage.item!==P.item||shownPage.page!==T.page){if(hlS){hlS.classList.remove("on");hlS=null}if(hlW){hlW.classList.remove("cur");hlW=null}return}
   const s=tv.querySelector(`.s[data-k="${T.k}"]`);
   if(s!==hlS){if(hlS)hlS.classList.remove("on");hlS=s;if(s)s.classList.add("on")}
@@ -515,7 +579,7 @@ function silence(){
 function paintPlayer(){
   const it=pItem(),e=P.list[P.cur];
   $("pTitle").textContent=CH[it.ch].t;
-  $("pPos").textContent=e?`p. ${e.page} · frase ${e.i+1} de ${e.n}`:"";
+  $("pPos").textContent=e?`p. ${e.page} · ${e.i+1}/${e.n}`:"";
   $("pPlay").textContent=P.playing?"❚❚":"▶";
   if(e)$("pBar").style.width=((e.page-it.a)+(e.i+1)/Math.max(1,e.n))/(it.b-it.a+1)*100+"%";
   if("mediaSession" in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:CH[it.ch].t,artist:CH[it.ch].book.split(" · ")[0],album:"Plan de lecturas"});navigator.mediaSession.playbackState=P.playing?"playing":"paused"}catch(x){}}
@@ -775,7 +839,13 @@ $("dayView").addEventListener("input",e=>{const t=e.target;if(t.dataset.bm!==und
 $("dayView").addEventListener("click",e=>{
   if(e.target.id==="listenBtn"){startAudio(cur,openItem,rPage);return}
   const vb=e.target.closest("[data-view]");
-  if(vb){view=vb.dataset.view;try{localStorage.setItem("vistaLector",view)}catch(x){}document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===view));drawPage();return}
+  if(vb){view=vb.dataset.view;try{localStorage.setItem("vistaLector",view)}catch(x){}document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===view));hlS=hlW=null;pdfMark="";drawPage();return}
+  if(e.target.id==="ov"&&pdfView){
+    const b=e.target.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;
+    let best=-1,bd=1e9;pdfView.rects.forEach((r,q)=>{if(!pdfView.rev.has(q))return;const dx=x<r.l?r.l-x:x>r.l+r.w?x-r.l-r.w:0,dy=y<r.t?r.t-y:y>r.t+r.h?y-r.t-r.h:0;const d=dx+dy*2;if(d<bd){bd=d;best=q}});
+    if(best>=0&&bd<30){const {k,j}=pdfView.rev.get(best);
+      if(P.on&&P.day===cur&&P.item===openItem){P.playing=true;playFrom(rPage,k,j)}else startAudio(cur,openItem,rPage,k,j)}
+    return}
   const wd=e.target.closest(".tview .w");
   if(wd){const k=+wd.dataset.k,j=+wd.dataset.j;
     if(P.on&&P.day===cur&&P.item===openItem){P.playing=true;playFrom(rPage,k,j)}else startAudio(cur,openItem,rPage,k,j);return}

@@ -16,6 +16,7 @@ Plan de 5 días para leer 6 capítulos y escribir el trabajo individual (entrega
 
 - Audiolibro gratis: botón "Escuchar desde esta página" con voz mexicana de Piper (mujer o hombre) que corre en el propio celular (onnxruntime-web + `piper.js`). Reproducción sin cortes (Web Audio, frases generadas por adelantado), velocidad de 0.75× a 2× sin cambiar el tono, limpieza del texto (comillas, guiones, abreviaturas, siglos en números romanos), frase anterior/siguiente, controles en la pantalla de bloqueo, recuerda dónde te quedaste y salta las notas al final de cada capítulo de Baldwin. La voz (~60 MB) se descarga una vez y queda en caché.
 
+- Vista PDF con resaltado sobre la imagen de la página (frase y palabra) y lectura desde la palabra que toques.
 - Vista de texto estilo Speechify: se marcan la frase y la palabra que se van leyendo, la página avanza sola, y al tocar cualquier palabra empieza a leer desde ahí. Las frases que continúan en la página siguiente se leen completas, sin pausa a la mitad.
 
 ## Dónde se guardan las notas
