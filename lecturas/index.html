@@ -164,8 +164,8 @@ body.playing{padding-bottom:190px}
         <option value="0.75">0.75×</option><option value="0.9">0.9×</option><option value="1">1×</option><option value="1.1">1.1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option>
       </select>
       <select id="pVoice" aria-label="Voz">
-        <option value="es_MX-claude-high">Voz de mujer (México)</option>
-        <option value="es_MX-ald-medium">Voz de hombre (México)</option>
+        <option value="es_MX-ald-medium">Voz de hombre: fluida (recomendada)</option>
+        <option value="es_MX-claude-high">Voz de mujer: más detallada, pide celular rápido</option>
       </select>
       <button id="pStop" aria-label="Cerrar audiolibro">✕</button>
     </div>
@@ -340,7 +340,6 @@ const TTS={
   voices:{"es_MX-claude-high":"es/es_MX/claude/high/es_MX-claude-high.onnx","es_MX-ald-medium":"es/es_MX/ald/medium/es_MX-ald-medium.onnx"}
 };
 const au=$("au");
-const P={on:false,playing:false,day:null,item:null,page:0,idx:0,chunks:[],ahead:new Map(),busy:false,gen:0,stopAt:Infinity};
 const engine={voice:null,session:null,cfg:null,piper:null};
 function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>no(new Error("script"));document.head.appendChild(s)})}
 async function cachedFetch(url,onProg){
@@ -379,27 +378,40 @@ function phonemize(texts){
     }catch(e){no(e)}
   });
 }
-function wav(pcm,rate){
-  const v=new DataView(new ArrayBuffer(44+pcm.length*2));const w=(o,s)=>{for(let i=0;i<4;i++)v.setUint8(o+i,s.charCodeAt(i))};
-  w(0,"RIFF");v.setUint32(4,36+pcm.length*2,true);w(8,"WAVE");w(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
-  v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,"data");v.setUint32(40,pcm.length*2,true);
-  for(let i=0,p=44;i<pcm.length;i++,p+=2){const s=Math.max(-1,Math.min(1,pcm[i]));v.setInt16(p,s<0?s*32768:s*32767,true)}
-  return new Blob([v.buffer],{type:"audio/wav"});
-}
+/* síntesis: devuelve el audio de una frase, sin silencios sobrantes */
 let synthQ=Promise.resolve();
-function synth(ids){const p=synthQ.then(()=>synthNow(ids));synthQ=p.catch(()=>{});return p}
-async function synthNow(ids){
+function synth(ids,speed){const p=synthQ.then(()=>synthNow(ids,speed));synthQ=p.catch(()=>{});return p}
+async function synthNow(ids,speed){
   if(!ids||ids.length<3)return null;
   const c=engine.cfg.inference;
   const feeds={input:new ort.Tensor("int64",BigInt64Array.from(ids.map(BigInt)),[1,ids.length]),
     input_lengths:new ort.Tensor("int64",BigInt64Array.from([BigInt(ids.length)]),[1]),
-    scales:new ort.Tensor("float32",Float32Array.from([c.noise_scale,c.length_scale,c.noise_w]),[3])};
+    scales:new ort.Tensor("float32",Float32Array.from([c.noise_scale,c.length_scale/speed,c.noise_w]),[3])};
   if(engine.cfg.speaker_id_map&&Object.keys(engine.cfg.speaker_id_map).length)feeds.sid=new ort.Tensor("int64",BigInt64Array.from([0n]),[1]);
+  const t0=performance.now();
   const r=await engine.session.run(feeds);
-  return wav(r.output.data,engine.cfg.audio.sample_rate);
+  const pcm=r.output.data,sr=engine.cfg.audio.sample_rate;
+  engine.rtf=(performance.now()-t0)/1000/(pcm.length/sr);
+  let a=0,b=pcm.length-1;const th=0.012;
+  while(a<b&&Math.abs(pcm[a])<th)a++;
+  while(b>a&&Math.abs(pcm[b])<th)b--;
+  a=Math.max(0,a-Math.round(sr*.02));b=Math.min(pcm.length-1,b+Math.round(sr*.04));
+  return pcm.slice(a,b+1);
 }
 
 /* texto limpio de una página del PDF */
+const ROM={I:1,V:5,X:10,L:50,C:100};
+function roman(r){let n=0;for(let i=0;i<r.length;i++){const v=ROM[r[i]],w=ROM[r[i+1]]||0;n+=v<w?-v:v}return n}
+function speakable(s){
+  return s.replace(/\bEE\.\s?UU\.?/g,"Estados Unidos").replace(/\bp\.\s?ej\./gi,"por ejemplo").replace(/\betc\./g,"etcétera")
+    .replace(/\bvs\./g,"contra").replace(/\bpp?\.\s?(\d)/g,"página $1").replace(/\bnúm\./g,"número").replace(/\bDr\./g,"doctor").replace(/\bSr\./g,"señor")
+    .replace(/(\d)\s?%/g,"$1 por ciento").replace(/&/g," y ")
+    .replace(/\b(siglos?|Siglos?)\s+([IVXLC]{1,6})\b/g,(m,a,r)=>a+" "+roman(r))
+    .replace(/[«»“”"„]/g,"").replace(/[‘’']/g,"")
+    .replace(/\s*[–—]\s*/g,", ").replace(/\s*\(\s*/g,", ").replace(/\s*\)\s*/g,", ")
+    .replace(/\s*[\[\]]\s*/g," ").replace(/…/g,".").replace(/\s*;\s*/g,", ")
+    .replace(/,\s*([,.:?!])/g,"$1").replace(/^\s*,\s*/,"").replace(/\s{2,}/g," ").trim();
+}
 async function pageText(bk,n,end){
   const doc=docs[bk];const pg=await doc.getPage(n);const tc=await pg.getTextContent();
   const hs=tc.items.filter(i=>i.str.trim()).map(i=>Math.abs(i.transform[3])||i.height).sort((a,b)=>a-b);const med=hs[Math.floor(hs.length/2)]||10;
@@ -416,102 +428,155 @@ async function pageText(bk,n,end){
   if(end&&n>=end.p){stop=true;const k=s.lastIndexOf(end.t);s=n>end.p?"":(k>=0?s.slice(0,k+end.t.length):s)}
   return {text:s,stop};
 }
+/* una frase por pedazo (las muy largas se parten en comas) */
 function chunk(text){
   const sents=text.split(/(?<=[.!?…»”)])\s+(?=[«¿¡"“(A-ZÁÉÍÓÚÑ0-9])/);
-  const out=[];let cur="";
-  const push=t=>{t=t.trim();if(!t)return;
-    while(t.length>320){let cut=t.lastIndexOf(", ",300);if(cut<120)cut=t.lastIndexOf(" ",300);out.push(t.slice(0,cut+1).trim());t=t.slice(cut+1).trim()}
-    out.push(t)};
-  for(const s of sents){if((cur+" "+s).length<220)cur=(cur?cur+" ":"")+s;else{push(cur);cur=s}}
-  push(cur);return out;
+  const out=[];
+  for(let s of sents){
+    s=s.trim();if(!s)continue;
+    while(s.length>260){let cut=s.lastIndexOf(", ",240);if(cut<80)cut=s.lastIndexOf(" ",240);if(cut<1)break;out.push({t:s.slice(0,cut+1).trim(),end:false});s=s.slice(cut+1).trim()}
+    if(s)out.push({t:s,end:true});
+  }
+  for(let i=0;i<out.length-1;i++){if(out[i].t.length<25&&out[i].end){out[i+1].t=out[i].t+" "+out[i+1].t;out[i].t=""}}
+  return out.filter(x=>x.t);
 }
 
-/* reproducción */
+/* reproducción sin cortes: las frases se generan por adelantado y se encadenan */
+let actx=null,silentURL=null;
+const P={on:false,playing:false,day:null,item:null,list:[],nextPage:0,ended:false,gp:0,gen:0,nextAt:0,srcs:[],cur:-1,speed:1};
 function setNow(t){$("pNow").textContent=t}
 function pKey(){return P.day+"-"+P.item}
 function pItem(){return DAYS.find(d=>d.id===P.day).items[P.item]}
+function silence(){
+  if(silentURL)return silentURL;
+  const sr=8000,n=sr;const v=new DataView(new ArrayBuffer(44+n*2));const w=(o,s)=>{for(let i=0;i<4;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,"RIFF");v.setUint32(4,36+n*2,true);w(8,"WAVE");w(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,"data");v.setUint32(40,n*2,true);
+  return silentURL=URL.createObjectURL(new Blob([v.buffer],{type:"audio/wav"}));
+}
 function paintPlayer(){
-  const it=pItem();
+  const it=pItem(),e=P.list[P.cur];
   $("pTitle").textContent=CH[it.ch].t;
-  $("pPos").textContent=`p. ${P.page} · frase ${Math.min(P.idx+1,P.chunks.length)} de ${P.chunks.length||"…"}`;
+  $("pPos").textContent=e?`p. ${e.page} · frase ${e.i+1} de ${e.n}`:"";
   $("pPlay").textContent=P.playing?"❚❚":"▶";
-  $("pBar").style.width=((P.page-it.a)/(it.b-it.a+1)*100+(P.chunks.length?P.idx/P.chunks.length:0)*100/(it.b-it.a+1))+"%";
-  if("mediaSession" in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:CH[it.ch].t,artist:CH[it.ch].book.split(" · ")[0],album:"Plan de lecturas"});navigator.mediaSession.playbackState=P.playing?"playing":"paused"}catch(e){}}
+  if(e)$("pBar").style.width=((e.page-it.a)+(e.i+1)/Math.max(1,e.n))/(it.b-it.a+1)*100+"%";
+  if("mediaSession" in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:CH[it.ch].t,artist:CH[it.ch].book.split(" · ")[0],album:"Plan de lecturas"});navigator.mediaSession.playbackState=P.playing?"playing":"paused"}catch(x){}}
 }
-function savePos(){state.audio=state.audio||{};state.audio[pKey()]={page:P.page,idx:P.idx};persist()}
-async function loadPage(n){
-  const it=pItem();P.page=n;P.ahead.clear();P.gen++;
-  const {text,stop}=await pageText(it.bk,n,it.end);
-  P.chunks=chunk(text);P.stopAt=stop?n:Infinity;
-  P.ids=P.chunks.length?await phonemize(P.chunks):[];
-  if(openItem===P.item&&cur===P.day&&$("cv")&&rPage!==n){rPage=n;drawPage()}
-}
-async function prefetch(){
-  if(P.busy)return;P.busy=true;const g=P.gen;
-  try{
-    for(let k=P.idx;k<Math.min(P.chunks.length,P.idx+3);k++){
-      if(g!==P.gen)break;
-      if(!P.ahead.has(k)){P.ahead.set(k,synth(P.ids[k]))}
-      await P.ahead.get(k);
-    }
-  }catch(e){}
-  P.busy=false;
-}
-async function playCurrent(){
-  while(P.idx>=P.chunks.length){
-    const it=pItem();
-    if(P.page>=it.b||P.page>=P.stopAt){finish();return}
-    setNow("Pasando a la página "+(P.page+1)+"…");
-    await loadPage(P.page+1);P.idx=0;
+const pageCache=new Map();
+async function addPage(g){
+  const it=pItem(),n=P.nextPage;
+  if(n>it.b){P.ended=true;return}
+  const key=it.bk+"|"+n+"|"+engine.cfg.espeak.voice;
+  let pc=pageCache.get(key);
+  if(!pc){
+    const {text,stop}=await pageText(it.bk,n,it.end);
+    const ch=chunk(text);
+    const ids=ch.length?await phonemize(ch.map(c=>speakable(c.t)||c.t)):[];
+    pc={ch,ids,stop};pageCache.set(key,pc);
   }
-  paintPlayer();setNow(P.chunks[P.idx]);savePos();
-  if(!P.ahead.has(P.idx))P.ahead.set(P.idx,synth(P.ids[P.idx]));
-  const myGen=P.gen,myIdx=P.idx;
-  let blob=null;try{blob=await P.ahead.get(P.idx)}catch(e){blob=null}
-  if(myGen!==P.gen||myIdx!==P.idx||!P.playing)return;
-  prefetch();
-  if(!blob){P.idx++;return playCurrent()}
-  if(au.src)URL.revokeObjectURL(au.src);
-  au.src=URL.createObjectURL(blob);au.playbackRate=+$("pRate").value;au.preservesPitch=true;
-  try{await au.play()}catch(e){P.playing=false;paintPlayer()}
+  if(g!==P.gen)return;
+  const {ch,ids,stop}=pc;
+  ch.forEach((c,i)=>P.list.push({page:n,i,n:ch.length,t:c.t,end:c.end,ids:ids[i],at:0,until:0}));
+  P.nextPage=n+1;if(stop)P.ended=true;
+}
+function stopSources(){for(const s of P.srcs){try{s.onended=null;s.stop()}catch(x){}}P.srcs=[]}
+async function genLoop(g){
+  while(P.on&&g===P.gen){
+    if(P.gp>=P.list.length){
+      if(P.ended)return;
+      await addPage(g);continue;
+    }
+    if(P.nextAt-actx.currentTime>45){await new Promise(r=>setTimeout(r,400));continue}
+    const e=P.list[P.gp];
+    let pcm=null;try{pcm=await synth(e.ids,P.speed)}catch(x){pcm=null}
+    if(g!==P.gen)return;
+    const gap=e.end?(/[?!]$/.test(e.t)?.42:.34):.14;
+    if(pcm&&pcm.length){
+      const sr=engine.cfg.audio.sample_rate;
+      const buf=actx.createBuffer(1,pcm.length,sr);buf.copyToChannel(pcm,0);
+      const src=actx.createBufferSource();src.buffer=buf;src.connect(actx.destination);
+      const at=Math.max(P.nextAt,actx.currentTime+.06);
+      src.start(at);P.srcs.push(src);src.onended=()=>{P.srcs=P.srcs.filter(x=>x!==src)};
+      e.at=at;e.until=at+buf.duration+gap;P.nextAt=e.until;
+      if(P.cur<0)P.cur=P.gp;
+    }else{e.at=e.until=Math.max(P.nextAt,actx.currentTime)}
+    P.gp++;
+  }
+}
+let ticker=null,lastSaved=-1;
+function audioTick(){
+  if(!P.on)return;
+  const t=actx.currentTime;
+  let i=P.cur<0?0:P.cur;
+  while(i<P.gp-1&&P.list[i].until<=t)i++;
+  if(P.gp&&i!==P.cur){P.cur=i}
+  const e=P.list[P.cur];
+  if(e&&e.at<=t+.05){
+    if($("pNow").dataset.i!==String(P.cur)){$("pNow").dataset.i=P.cur;setNow(e.t);paintPlayer();
+      if(openItem===P.item&&cur===P.day&&$("cv")&&rPage!==e.page){rPage=e.page;drawPage()}}
+    if(P.cur!==lastSaved){lastSaved=P.cur;savePos()}
+  }
+  if(P.playing&&(!e||t>=e.until)&&P.gp<P.list.length+(P.ended?0:1)&&P.cur>=P.gp-1){setNow("Preparando la siguiente frase…");$("pNow").dataset.i=""}
+  if(P.ended&&P.gp>=P.list.length&&P.list.length&&t>=P.nextAt-.1&&P.playing){finish()}
+}
+function savePos(){
+  const e=P.list[P.cur];if(!e)return;
+  state.audio=state.audio||{};state.audio[pKey()]={page:e.page,idx:e.i};persist();
 }
 function finish(){
-  P.playing=false;paintPlayer();setNow("Terminaste este capítulo. ¡Bien hecho!");
-  const it=pItem();state.audio=state.audio||{};state.audio[pKey()]={page:it.a,idx:0};persist();
+  P.playing=false;stopSources();try{au.pause()}catch(x){}
+  paintPlayer();setNow("Terminaste este capítulo. ¡Bien hecho!");
+  const it=pItem();state.audio=state.audio||{};state.audio[pKey()]={page:it.a,idx:0};persist();P.ended=false;P.on=false;
 }
-au.addEventListener("ended",()=>{if(!P.playing)return;P.ahead.delete(P.idx);P.idx++;playCurrent()});
+async function playFrom(page,idx){
+  P.gen++;const g=P.gen;stopSources();
+  P.list=[];P.gp=0;P.cur=-1;P.nextPage=page;P.ended=false;$("pNow").dataset.i="";
+  await actx.resume();P.nextAt=actx.currentTime+.1;
+  setNow("Preparando la página "+page+"…");
+  await addPage(g);if(g!==P.gen)return;
+  const skip=Math.min(idx||0,Math.max(0,P.list.length-1));
+  P.list.splice(0,skip);
+  P.playing=true;au.src=silence();au.loop=true;au.play().catch(()=>{});paintPlayer();
+  genLoop(g);
+  setTimeout(()=>{if(g===P.gen&&engine.rtf>1.05&&P.playing)setNow("Tu celular genera la voz más lento de lo que la lee. Para menos pausas, elige la voz de hombre (es más ligera) o baja la velocidad.")},9000);
+}
 async function startAudio(day,item,page){
-  P.on=true;P.day=day;P.item=item;P.playing=true;P.gen++;
+  if(!actx){const C=window.AudioContext||window.webkitAudioContext;actx=new C()}
+  await actx.resume().catch(()=>{});
+  P.on=true;P.day=day;P.item=item;
   $("player").hidden=false;document.body.classList.add("playing");
-  $("pRate").value=state.audioRate||"1";$("pVoice").value=state.audioVoice||"es_MX-claude-high";
-  $("pPlay").textContent="❚❚";
+  $("pRate").value=state.audioRate||"1";$("pVoice").value=state.audioVoice||"es_MX-ald-medium";P.speed=+$("pRate").value;
+  paintPlayer();
   try{await loadEngine($("pVoice").value)}catch(e){setNow("No se pudo descargar la voz. Revisa tu conexión a internet e intenta de nuevo.");P.playing=false;paintPlayer();return}
   const saved=(state.audio||{})[day+"-"+item];
-  const startPage=page||(saved&&saved.page)||pItem().a;
-  setNow("Preparando el texto de la página "+startPage+"…");
-  await loadPage(startPage);
-  P.idx=(!page&&saved&&saved.page===startPage)?Math.min(saved.idx,Math.max(0,P.chunks.length-1)):0;
-  playCurrent();
+  const it=pItem();
+  if(page&&!(saved&&saved.page===page))return playFrom(page,0);
+  const sp=(saved&&saved.page>=it.a&&saved.page<=it.b)?saved.page:(page||it.a);
+  playFrom(sp,saved&&saved.page===sp?saved.idx:0);
 }
+function curPos(){const e=P.list[Math.max(0,P.cur)];if(!e)return null;return {page:e.page,idx:e.i,e}}
 function togglePlay(){
   if(!P.on)return;
-  if(P.playing){P.playing=false;au.pause();savePos()}
-  else{P.playing=true;if(au.src&&au.currentTime>0&&!au.ended)au.play().catch(()=>{});else playCurrent()}
+  if(P.playing){P.playing=false;actx.suspend();au.pause();savePos()}
+  else{P.playing=true;actx.resume();au.play().catch(()=>{})}
   paintPlayer();
 }
-function step(n){
-  if(!P.on)return;au.pause();P.gen++;P.ahead.clear();
-  if(n<0&&P.idx===0&&P.page>pItem().a){(async()=>{await loadPage(P.page-1);P.idx=Math.max(0,P.chunks.length-1);P.playing=true;playCurrent()})();return}
-  P.idx=Math.max(0,P.idx+n);P.playing=true;playCurrent();
+async function step(n){
+  if(!P.on)return;const p=curPos();if(!p)return;
+  let page=p.page,idx=p.idx+n;
+  if(idx<0){if(page>pItem().a){page--;const {text}=await pageText(pItem().bk,page,pItem().end);idx=Math.max(0,chunk(text).length-1)}else idx=0}
+  playFrom(page,idx);
 }
+function restartHere(){const p=curPos();if(p)playFrom(p.page,p.idx)}
+ticker=setInterval(()=>{if(actx)audioTick()},200);
 $("pPlay").addEventListener("click",togglePlay);
 $("pPrev").addEventListener("click",()=>step(-1));
 $("pNext").addEventListener("click",()=>step(1));
-$("pRate").addEventListener("change",()=>{au.playbackRate=+$("pRate").value;state.audioRate=$("pRate").value;persist()});
-$("pVoice").addEventListener("change",async()=>{state.audioVoice=$("pVoice").value;persist();au.pause();P.gen++;P.ahead.clear();
+$("pRate").addEventListener("change",()=>{P.speed=+$("pRate").value;state.audioRate=$("pRate").value;persist();if(P.on)restartHere()});
+$("pVoice").addEventListener("change",async()=>{state.audioVoice=$("pVoice").value;persist();if(!P.on)return;P.gen++;stopSources();
   try{await loadEngine($("pVoice").value)}catch(e){setNow("No se pudo descargar esa voz. Revisa tu conexión.");return}
-  P.ids=P.chunks.length?await phonemize(P.chunks):[];P.playing=true;playCurrent()});
-$("pStop").addEventListener("click",()=>{au.pause();savePos();P.on=false;P.playing=false;P.gen++;$("player").hidden=true;document.body.classList.remove("playing")});
+  restartHere()});
+$("pStop").addEventListener("click",()=>{savePos();P.on=false;P.playing=false;P.gen++;stopSources();try{au.pause()}catch(x){}$("player").hidden=true;document.body.classList.remove("playing")});
 if("mediaSession" in navigator){try{
   navigator.mediaSession.setActionHandler("play",()=>{if(!P.playing)togglePlay()});
   navigator.mediaSession.setActionHandler("pause",()=>{if(P.playing)togglePlay()});

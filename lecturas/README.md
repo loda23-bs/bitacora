@@ -14,7 +14,7 @@ Plan de 5 días para leer 6 capítulos y escribir el trabajo individual (entrega
 - Copiar o descargar todas las notas en .txt
 - Lector integrado: botón "Leer aquí" que muestra solo las páginas del día. El PDF se carga desde el dispositivo una sola vez y se guarda en el navegador (IndexedDB); los libros no se suben al repositorio porque son públicos y tienen derechos de autor.
 
-- Audiolibro gratis: botón "Escuchar desde esta página" con voz mexicana de Piper (mujer o hombre) que corre en el propio celular (onnxruntime-web + `piper.js`). Velocidad de 0.75× a 2×, frase anterior/siguiente, controles en la pantalla de bloqueo, recuerda dónde te quedaste y salta las notas al final de cada capítulo de Baldwin. La voz (~60 MB) se descarga una vez y queda en caché.
+- Audiolibro gratis: botón "Escuchar desde esta página" con voz mexicana de Piper (mujer o hombre) que corre en el propio celular (onnxruntime-web + `piper.js`). Reproducción sin cortes (Web Audio, frases generadas por adelantado), velocidad de 0.75× a 2× sin cambiar el tono, limpieza del texto (comillas, guiones, abreviaturas, siglos en números romanos), frase anterior/siguiente, controles en la pantalla de bloqueo, recuerda dónde te quedaste y salta las notas al final de cada capítulo de Baldwin. La voz (~60 MB) se descarga una vez y queda en caché.
 
 ## Dónde se guardan las notas
 
