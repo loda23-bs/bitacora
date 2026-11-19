@@ -462,7 +462,7 @@ const TTS={
   voices:{"es_MX-claude-high":"es/es_MX/claude/high/es_MX-claude-high.onnx","es_MX-ald-medium":"es/es_MX/ald/medium/es_MX-ald-medium.onnx"}
 };
 const au=$("au");
-const engine={voice:null,session:null,cfg:null,piper:null};
+const engine={voice:null,ready:false,cfg:null,rtf:0};
 function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>no(new Error("script"));document.head.appendChild(s)})}
 async function cachedFetch(url,onProg){
   let c=null;try{c=await caches.open("voces-piper-v1");const hit=await c.match(url);if(hit)return await hit.arrayBuffer()}catch(e){}
@@ -473,52 +473,85 @@ async function cachedFetch(url,onProg){
   try{c&&await c.put(url,new Response(buf.slice(0)))}catch(e){}
   return buf;
 }
-async function loadEngine(voice){
-  if(engine.voice===voice&&engine.session)return;
-  setNow("Descargando la voz por primera vez (unos 60 MB). Después ya queda guardada…");
-  if(!window.ort)await loadScript(TTS.ort+"ort.min.js");
-  ort.env.wasm.wasmPaths=TTS.ort;ort.env.wasm.numThreads=1;
-  if(!engine.piper)engine.piper=await import("./piper.js");
-  const path=TTS.voices[voice];
-  engine.cfg=JSON.parse(new TextDecoder().decode(await cachedFetch(TTS.hf+path+".json")));
-  const model=await cachedFetch(TTS.hf+path,(g,t)=>{setNow("Descargando la voz: "+(t?Math.round(g/t*100)+"%":Math.round(g/1048576)+" MB")+" (solo la primera vez)");$("pBar").style.width=(t?g/t*100:0)+"%"});
-  setNow("Preparando la voz…");
-  engine.session=await ort.InferenceSession.create(model);
-  engine.voice=voice;
+/* motor de voz en segundo plano (Web Worker): la página nunca se congela */
+const WORKER_SRC=`
+let session=null,cfg=null,ph=null,buf=null,q=Promise.resolve();
+async function init(m){
+  if(!self.ort){importScripts(m.ort+"ort.min.js")}
+  ort.env.wasm.wasmPaths=m.ort;ort.env.wasm.numThreads=1;
+  if(!self.createPiperPhonemize){
+    const src=await (await fetch(m.piper)).text();
+    importScripts(URL.createObjectURL(new Blob([src.replace("export var createPiperPhonemize","self.createPiperPhonemize")],{type:"text/javascript"})));
+  }
+  if(!ph){ph=await self.createPiperPhonemize({print:d=>{if(buf)buf.push(d)},printErr:()=>{},
+    locateFile:u=>u.endsWith(".wasm")?m.wasm+".wasm":u.endsWith(".data")?m.wasm+".data":u})}
+  cfg=m.cfg;session=null;session=await ort.InferenceSession.create(new Uint8Array(m.model));
+  return {};
 }
-function phonemize(texts){
-  return new Promise(async(ok,no)=>{
-    const out=[];
-    try{
-      const m=await engine.piper.createPiperPhonemize({
-        print:d=>{try{out.push(JSON.parse(d).phoneme_ids)}catch(e){out.push([])}if(out.length===texts.length)ok(out)},
-        printErr:()=>{},
-        locateFile:u=>u.endsWith(".wasm")?TTS.wasm+".wasm":u.endsWith(".data")?TTS.wasm+".data":u
-      });
-      m.callMain(["-l",engine.cfg.espeak.voice,"--input",JSON.stringify(texts.map(t=>({text:t}))),"--espeak_data","/espeak-ng-data"]);
-      setTimeout(()=>{if(out.length<texts.length){while(out.length<texts.length)out.push([]);ok(out)}},15000);
-    }catch(e){no(e)}
-  });
+function phon(m){
+  buf=[];
+  try{ph.callMain(["-l",m.voice,"--input",JSON.stringify(m.texts.map(t=>({text:t}))),"--espeak_data","/espeak-ng-data"])}catch(e){}
+  const ids=buf.map(d=>{try{return JSON.parse(d).phoneme_ids}catch(e){return []}});buf=null;
+  while(ids.length<m.texts.length)ids.push([]);
+  return {ids};
 }
-/* síntesis: devuelve el audio de una frase, sin silencios sobrantes */
-let synthQ=Promise.resolve();
-function synth(ids,speed){const p=synthQ.then(()=>synthNow(ids,speed));synthQ=p.catch(()=>{});return p}
-async function synthNow(ids,speed){
-  if(!ids||ids.length<3)return null;
-  const c=engine.cfg.inference;
+async function synth(m){
+  const ids=m.ids;if(!ids||ids.length<3)return {pcm:null};
+  const c=cfg.inference;
   const feeds={input:new ort.Tensor("int64",BigInt64Array.from(ids.map(BigInt)),[1,ids.length]),
     input_lengths:new ort.Tensor("int64",BigInt64Array.from([BigInt(ids.length)]),[1]),
-    scales:new ort.Tensor("float32",Float32Array.from([c.noise_scale,c.length_scale/speed,c.noise_w]),[3])};
-  if(engine.cfg.speaker_id_map&&Object.keys(engine.cfg.speaker_id_map).length)feeds.sid=new ort.Tensor("int64",BigInt64Array.from([0n]),[1]);
+    scales:new ort.Tensor("float32",Float32Array.from([c.noise_scale,c.length_scale/m.speed,c.noise_w]),[3])};
+  if(cfg.speaker_id_map&&Object.keys(cfg.speaker_id_map).length)feeds.sid=new ort.Tensor("int64",BigInt64Array.from([0n]),[1]);
   const t0=performance.now();
-  const r=await engine.session.run(feeds);
-  const pcm=r.output.data,sr=engine.cfg.audio.sample_rate;
-  engine.rtf=(performance.now()-t0)/1000/(pcm.length/sr);
+  const r=await session.run(feeds);
+  const pcm=r.output.data,sr=cfg.audio.sample_rate;
+  const rtf=(performance.now()-t0)/1000/(pcm.length/sr);
   let a=0,b=pcm.length-1;const th=0.012;
   while(a<b&&Math.abs(pcm[a])<th)a++;
   while(b>a&&Math.abs(pcm[b])<th)b--;
   a=Math.max(0,a-Math.round(sr*.02));b=Math.min(pcm.length-1,b+Math.round(sr*.04));
-  return pcm.slice(a,b+1);
+  const out=new Float32Array(pcm.subarray(a,b+1));
+  const f=Math.min(Math.round(sr*.008),out.length>>2);for(let k=0;k<f;k++){const g=k/f;out[k]*=g;out[out.length-1-k]*=g}
+  return {pcm:out,rtf};
+}
+self.onmessage=ev=>{const m=ev.data;
+  q=q.then(async()=>{
+    try{
+      const r=m.type==="init"?await init(m):m.type==="phon"?phon(m):await synth(m);
+      postMessage(Object.assign({id:m.id,ok:true},r),r.pcm?[r.pcm.buffer]:[]);
+    }catch(e){postMessage({id:m.id,ok:false,err:String(e&&e.message||e)})}
+  });
+};`;
+let worker=null,rpcId=0;const pending=new Map();
+function getWorker(){
+  if(worker)return worker;
+  worker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:"text/javascript"})));
+  worker.onmessage=ev=>{const m=ev.data,p=pending.get(m.id);if(!p)return;pending.delete(m.id);m.ok?p.ok(m):p.no(new Error(m.err))};
+  worker.onerror=e=>{for(const p of pending.values())p.no(new Error("worker"));pending.clear()};
+  return worker;
+}
+function rpc(msg,transfer){return new Promise((ok,no)=>{const id=++rpcId;pending.set(id,{ok,no});getWorker().postMessage(Object.assign({id},msg),transfer||[])})}
+async function loadEngine(voice){
+  if(engine.voice===voice&&engine.ready)return;
+  engine.ready=false;
+  setNow("Descargando la voz por primera vez (unos 60 MB). Después ya queda guardada…");
+  const path=TTS.voices[voice];
+  const cfg=JSON.parse(new TextDecoder().decode(await cachedFetch(TTS.hf+path+".json")));
+  const model=await cachedFetch(TTS.hf+path,(g,t)=>{setNow("Descargando la voz: "+(t?Math.round(g/t*100)+"%":Math.round(g/1048576)+" MB")+" (solo la primera vez)");$("pBar").style.width=(t?g/t*100:0)+"%"});
+  setNow("Preparando la voz…");
+  await rpc({type:"init",ort:TTS.ort,wasm:TTS.wasm,piper:new URL("piper.js",location.href).href,cfg,model},[model]);
+  engine.cfg=cfg;engine.voice=voice;engine.ready=true;
+}
+async function phonemize(texts){
+  if(!texts.length)return [];
+  const r=await rpc({type:"phon",voice:engine.cfg.espeak.voice,texts});
+  return r.ids;
+}
+async function synth(ids,speed){
+  if(!ids||ids.length<3)return null;
+  const r=await rpc({type:"synth",ids,speed});
+  if(r.rtf)engine.rtf=r.rtf;
+  return r.pcm;
 }
 
 /* texto limpio de una página del PDF */
@@ -629,7 +662,6 @@ async function genLoop(g){
     const gap=e.end?(/[?!]$/.test(e.t)?.3:.24):.07;
     if(pcm&&pcm.length){
       const sr=engine.cfg.audio.sample_rate;
-      const f=Math.min(Math.round(sr*.008),pcm.length>>2);for(let q=0;q<f;q++){const g2=q/f;pcm[q]*=g2;pcm[pcm.length-1-q]*=g2}
       const buf=actx.createBuffer(1,pcm.length,sr);buf.copyToChannel(pcm,0);
       const src=actx.createBufferSource();src.buffer=buf;src.connect(actx.destination);
       const at=Math.max(P.nextAt,actx.currentTime+.06);
