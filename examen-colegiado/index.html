@@ -128,6 +128,8 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .mt{margin-top:14px}.mt2{margin-top:22px}
 .modal{position:fixed;inset:0;background:rgba(10,15,30,.55);display:grid;place-items:center;z-index:20;padding:20px}
 .modal .card{max-width:420px;width:100%}
+.inp{display:block;width:100%;margin-top:6px;font:inherit;padding:12px 14px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}
+.inp:focus{outline:none;border-color:var(--gold)}
 input[type=date]{font:inherit;padding:10px 12px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink);width:100%}
 .toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
 .sw{width:50px;height:30px;border-radius:99px;background:var(--line);position:relative;flex:none;transition:background .15s}
@@ -155,15 +157,141 @@ const BANK=[{"id":"14d3ntk","l":"L11","u":"U1","s":"mat","q":"Según su etimolog
 </script>
 <script>
 // ====== Estado (localStorage con respaldo en memoria) ======
-const KEY='fa2127_v1';
-let S;
-function blank(){return {xp:0,streak:0,lastDay:'',lessons:{},qs:{},wrong:{},exams:[],examDate:'',answered:0,correct:0,onlyMat:false}}
-// Progreso inicial (importado del celular el 13/11/2026); se usa solo si este navegador no tiene progreso guardado
-const SEED='eyJ4cCI6ODg1LCJzdHJlYWsiOjIsImxhc3REYXkiOiIyMDI2LTExLTEzIiwibGVzc29ucyI6eyJMMTEiOjMsIkwxMiI6MywiTDEzIjozfSwicXMiOnsiMThleGNqIjp7InMiOjMsImMiOjIsImgiOiIwMTEifSwiMTE2OGs3MSI6eyJzIjoyLCJjIjowLCJoIjoiMDAifSwiZzVxeHIzIjp7InMiOjEsImMiOjEsImgiOiIxIn0sIjFydTlkcXkiOnsicyI6MiwiYyI6MCwiaCI6IjAwIn0sIjFjOHE3bzYiOnsicyI6MSwiYyI6MSwiaCI6IjEifSwicmF2c3c1Ijp7InMiOjIsImMiOjEsImgiOiIwMSJ9LCIxdW1zMm10Ijp7InMiOjEsImMiOjEsImgiOiIxIn0sIjFuMjN1dWMiOnsicyI6MSwiYyI6MSwiaCI6IjEifSwiMWIzOXNqYSI6eyJzIjoyLCJjIjowLCJoIjoiMDAifSwiODJudmc3Ijp7InMiOjEsImMiOjEsImgiOiIxIn0sImZkOGxhaiI6eyJzIjoyLCJjIjoyLCJoIjoiMTEifSwiMW1kcjVhcyI6eyJzIjozLCJjIjoyLCJoIjoiMDExIn0sIjFnOGRuaXIiOnsicyI6MSwiYyI6MSwiaCI6IjEifSwiaTk0dnR4Ijp7InMiOjIsImMiOjIsImgiOiIxMSJ9LCJmMHc4dTUiOnsicyI6MiwiYyI6MiwiaCI6IjExIn0sIjF0bjVwdG0iOnsicyI6MSwiYyI6MSwiaCI6IjEifSwiaWNyMWZmIjp7InMiOjEsImMiOjEsImgiOiIxIn0sIjhyendxIjp7InMiOjEsImMiOjEsImgiOiIxIn0sInlldDdzYSI6eyJzIjoxLCJjIjoxLCJoIjoiMSJ9LCIxcDNmb2xoIjp7InMiOjIsImMiOjIsImgiOiIxMSJ9LCIxZDJqNXZuIjp7InMiOjIsImMiOjIsImgiOiIxMSJ9LCI3ZzNhOGYiOnsicyI6MiwiYyI6MiwiaCI6IjExIn0sIjFyMmhlcHUiOnsicyI6MiwiYyI6MiwiaCI6IjExIn0sInc1a3ZqbyI6eyJzIjo0LCJjIjozLCJoIjoiMDExIn0sIjFobHh4MmIiOnsicyI6MiwiYyI6MiwiaCI6IjExIn0sIjVpeGZqaCI6eyJzIjoyLCJjIjoyLCJoIjoiMTEifSwiaXk3ZHloIjp7InMiOjIsImMiOjIsImgiOiIxMSJ9LCIxMWd1bXdwIjp7InMiOjIsImMiOjIsImgiOiIxMSJ9LCIxYnp6Z3V3Ijp7InMiOjIsImMiOjIsImgiOiIxMSJ9LCIxbzZmenR5Ijp7InMiOjMsImMiOjIsImgiOiIwMTEifSwiMTJxdHp4bSI6eyJzIjoyLCJjIjoyLCJoIjoiMTEifSwiZ3FsZDZjIjp7InMiOjIsImMiOjIsImgiOiIxMSJ9LCJjbGk3NzAiOnsicyI6MiwiYyI6MiwiaCI6IjExIn0sIjhhcmtoOCI6eyJzIjoyLCJjIjoyLCJoIjoiMTEifSwiMThzbGozOSI6eyJzIjoyLCJjIjoyLCJoIjoiMTEifSwiMTV6YmUzMiI6eyJzIjoyLCJjIjoyLCJoIjoiMTEifSwiMTE5d3g4YiI6eyJzIjoyLCJjIjoyLCJoIjoiMTEifSwicWl3cjM2Ijp7InMiOjIsImMiOjIsImgiOiIxMSJ9LCJ5cjR3ZHAiOnsicyI6MiwiYyI6MiwiaCI6IjExIn0sIjFnZno4OWMiOnsicyI6MywiYyI6MiwiaCI6IjAxMSJ9LCIxcGV3cnY5Ijp7InMiOjMsImMiOjIsImgiOiIwMTEifSwiMTRkM250ayI6eyJzIjoxLCJjIjoxLCJoIjoiMSJ9LCI2OHM1bXMiOnsicyI6NCwiYyI6MiwiaCI6IjAxMSJ9LCIxeTRrOXg3Ijp7InMiOjMsImMiOjIsImgiOiIwMTEifSwidm51M2V4Ijp7InMiOjEsImMiOjEsImgiOiIxIn0sIjFxeGY5aG0iOnsicyI6MywiYyI6MiwiaCI6IjAxMSJ9LCIxb20zc3N4Ijp7InMiOjMsImMiOjIsImgiOiIwMTEifSwiMXdjdmxyeiI6eyJzIjoxLCJjIjoxLCJoIjoiMSJ9LCI5YmY5c3oiOnsicyI6MSwiYyI6MSwiaCI6IjEifSwiZTA0NTR0Ijp7InMiOjMsImMiOjIsImgiOiIwMTEifSwiNThhY21jIjp7InMiOjEsImMiOjEsImgiOiIxIn0sImdsaHMyOCI6eyJzIjoxLCJjIjoxLCJoIjoiMSJ9LCIxNjU0c2l0Ijp7InMiOjEsImMiOjEsImgiOiIxIn0sIjFpOWZpd2wiOnsicyI6MSwiYyI6MSwiaCI6IjEifSwiNWpnM2kzIjp7InMiOjMsImMiOjIsImgiOiIwMTEifSwidmk3NXg2Ijp7InMiOjMsImMiOjEsImgiOiIwMTAifX0sIndyb25nIjp7IjExNjhrNzEiOjEsIjFydTlkcXkiOjEsInJhdnN3NSI6MSwiMWIzOXNqYSI6MSwidmk3NXg2IjoxfSwiZXhhbXMiOltdLCJleGFtRGF0ZSI6IiIsImFuc3dlcmVkIjoxMDksImNvcnJlY3QiOjg3LCJvbmx5TWF0IjpmYWxzZX0=';
-function seedState(){try{return Object.assign(blank(),JSON.parse(decodeURIComponent(escape(atob(SEED)))))}catch(e){return blank()}}
-function load(){try{const r=localStorage.getItem(KEY);S=r?Object.assign(blank(),JSON.parse(r)):seedState()}catch(e){S=seedState()}try{if(!localStorage.getItem(KEY))save()}catch(e){}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
-load();
+// ====== Cuentas y almacenamiento ======
+// Cada cuenta (usuario + contraseña) tiene su propio progreso.
+// Se guarda en este dispositivo y, si la página lo permite, también en la nube de tu cuenta de Claude.
+const LEGACY_KEY='fa2127_v1';         // progreso anterior (sin cuentas)
+const REG_KEY='fa2127_accounts';      // registro local de cuentas
+const SESS_KEY='fa2127_session';      // cuenta con sesión abierta
+const ACC_PREFIX='fa2127_acc_';       // progreso por cuenta
+let S=null, ACC=null;                 // estado y usuario actual
+function blank(){return {xp:0,streak:0,lastDay:'',lessons:{},qs:{},wrong:{},exams:[],examDate:'',answered:0,correct:0,onlyMat:false,updated:0}}
+const LS_OK=(()=>{try{localStorage.setItem('__t','1');localStorage.removeItem('__t');return true}catch(e){return false}})();
+function lget(k){try{const r=localStorage.getItem(k);return r?JSON.parse(r):null}catch(e){return null}}
+function lset(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function ldel(k){try{localStorage.removeItem(k)}catch(e){}}
+let REG=lget(REG_KEY)||{accounts:{},legacyClaimedBy:null};
+// ---- nube (base de datos del artefacto, privada por persona) ----
+const CLOUD={db:null,uid:null,ready:false,writable:true,status:'conectando'};
+let cloudTimer=null,cloudBusy=false,cloudLast='';
+async function initCloud(){
+  try{
+    if(!window.claude||!window.claude.use){CLOUD.status='sin nube';CLOUD.ready=true;return}
+    const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
+    const uid=user?await user.id():null;
+    if(!db||!uid){CLOUD.status='sin nube';CLOUD.ready=true;return}
+    CLOUD.db=db;CLOUD.uid=uid;
+    const snap=await withTimeout(db.doc('data/users/'+uid+'/registry').get(),10000);
+    if(snap&&snap.exists){const r=snap.data()||{};
+      for(const [n,a] of Object.entries(r.accounts||{}))if(!REG.accounts[n])REG.accounts[n]=a;
+      if(!REG.legacyClaimedBy&&r.legacyClaimedBy)REG.legacyClaimedBy=r.legacyClaimedBy;
+      lset(REG_KEY,REG)}
+    CLOUD.status='nube activa';
+  }catch(e){CLOUD.status='sin nube'}
+  CLOUD.ready=true;
+}
+function withTimeout(p,ms){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:'timeout'}),ms))])}
+function cloudOn(){return CLOUD.db&&CLOUD.uid&&CLOUD.writable}
+async function cloudWrite(path,data){
+  if(!cloudOn())return false;
+  try{await CLOUD.db.doc(path).set(data);return true}
+  catch(e){if(e&&e.code==='invalid_argument'){CLOUD.writable=false;CLOUD.status='solo en este dispositivo'}return false}
+}
+async function cloudRead(path){if(!CLOUD.db||!CLOUD.uid)return null;try{const s=await withTimeout(CLOUD.db.doc(path).get(),10000);return s&&s.exists?s.data():null}catch(e){return null}}
+function saveRegistry(){lset(REG_KEY,REG);if(cloudOn())cloudWrite('data/users/'+CLOUD.uid+'/registry',{accounts:REG.accounts,legacyClaimedBy:REG.legacyClaimedBy||null})}
+function save(){
+  if(!ACC||!S)return;S.updated=Date.now();lset(ACC_PREFIX+ACC,S);
+  clearTimeout(cloudTimer);cloudTimer=setTimeout(flushCloud,2500);
+}
+async function flushCloud(){
+  if(!ACC||!S||!cloudOn()||cloudBusy)return;const body=JSON.stringify(S);if(body===cloudLast)return;
+  cloudBusy=true;const ok=await cloudWrite('data/users/'+CLOUD.uid+'/acc-'+ACC,{state:JSON.parse(body)});cloudBusy=false;
+  if(ok)cloudLast=body;
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushCloud()});
+// ---- contraseñas (hash con sal; separa el progreso de cada quien) ----
+async function hashPw(pw,salt){
+  const txt=salt+'|'+pw;
+  try{const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+  catch(e){let h=5381;for(const c of txt)h=((h<<5)+h+c.charCodeAt(0))|0;return 'f'+(h>>>0).toString(16)}
+}
+function newSalt(){try{return [...crypto.getRandomValues(new Uint8Array(12))].map(b=>b.toString(16).padStart(2,'0')).join('')}catch(e){return Math.random().toString(36).slice(2)}}
+function normUser(u){return String(u||'').trim().toLowerCase()}
+const USER_RE=/^[a-z0-9_.-]{3,20}$/;
+async function loadAccountState(name){
+  const local=lget(ACC_PREFIX+name);
+  const remote=await cloudRead('data/users/'+(CLOUD.uid||'x')+'/acc-'+name);
+  const r=remote&&remote.state?remote.state:null;
+  let st=local;if(r&&(!local||(r.updated||0)>(local.updated||0)))st=r;
+  return Object.assign(blank(),st||{});
+}
+async function enterAccount(name,state){
+  ACC=name;S=state;lset(SESS_KEY,name);lset(ACC_PREFIX+name,S);cloudLast='';
+  if(cloudOn())flushCloud();
+  go('home');
+}
+function logout(){flushCloud();ACC=null;S=null;ldel(SESS_KEY);authView('login')}
+
+// ====== Pantallas de acceso ======
+function authView(mode,msg){
+  keyHandler=null;
+  const has=Object.keys(REG.accounts).length>0;
+  if(!mode)mode=has?'login':'register';
+  const legacy=lget(LEGACY_KEY);
+  const willClaim=mode==='register'&&legacy&&!REG.legacyClaimedBy&&(legacy.answered||legacy.xp||Object.keys(legacy.lessons||{}).length);
+  $('#app').innerHTML=`
+  <div class="hero"><div style="position:relative;z-index:1"><div class="kicker" style="color:var(--gold)">FCA · UNAM · Clave 2127</div><h1>Fundamentos de Administración</h1><div class="sub">${mode==='login'?'Inicia sesión para continuar con tu progreso.':'Crea tu cuenta para entrar. Cada cuenta tiene su propio progreso.'}</div></div></div>
+  <div class="card mt2">
+    <div class="chips" style="margin-bottom:14px"><button class="chip ${mode==='login'?'on':''}" onclick="authView('login')">Iniciar sesión</button><button class="chip ${mode==='register'?'on':''}" onclick="authView('register')">Crear cuenta</button></div>
+    <form id="af" autocomplete="on">
+      <label><b>Usuario</b><br><small class="muted">3 a 20 caracteres: letras, números, punto, guion o guion bajo</small>
+      <input id="au" class="inp" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required></label>
+      <label class="mt" style="display:block"><b>Contraseña</b><br><small class="muted">Mínimo 4 caracteres</small>
+      <input id="ap" class="inp" type="password" autocomplete="${mode==='login'?'current-password':'new-password'}" required></label>
+      ${mode==='register'?`<label class="mt" style="display:block"><b>Repite la contraseña</b><input id="ap2" class="inp" type="password" autocomplete="new-password" required></label>`:''}
+      <div id="amsg" class="mt" style="color:var(--bad);font-weight:600">${msg||''}</div>
+      ${willClaim?`<label class="card mt" style="display:flex;gap:10px;align-items:flex-start;border-color:var(--gold);background:var(--gold-soft)"><input type="checkbox" id="claim" checked style="width:20px;height:20px;margin-top:2px;flex:none"><span>⭐ Este navegador tiene progreso guardado de antes (${legacy.xp||0} XP, ${legacy.answered||0} preguntas respondidas). Déjalo marcado para pasarlo a esta cuenta; desmárcalo para empezar desde cero.</span></label>`:''}
+      <button class="btn gold mt" type="submit" id="asb">${mode==='login'?'Entrar':'Crear cuenta y entrar'}</button>
+    </form>
+  </div>
+  <p class="center muted mt" style="font-size:12px" id="cst">${cloudNote()}</p>`;
+  $('#af').onsubmit=async e=>{e.preventDefault();$('#asb').disabled=true;
+    const err=m=>{$('#amsg').textContent=m;$('#asb').disabled=false};
+    const u=normUser($('#au').value),p=$('#ap').value;
+    if(!USER_RE.test(u))return err('Usuario no válido: usa de 3 a 20 letras, números, punto, guion o guion bajo, sin espacios.');
+    if(p.length<4)return err('La contraseña debe tener al menos 4 caracteres.');
+    if(mode==='register'){
+      if(p!==$('#ap2').value)return err('Las contraseñas no coinciden.');
+      if(REG.accounts[u])return err('Ese usuario ya existe en este dispositivo. Inicia sesión o elige otro.');
+      const salt=newSalt();REG.accounts[u]={salt,hash:await hashPw(p,salt),created:today()};
+      let st=blank();
+      if(willClaim&&$('#claim')&&$('#claim').checked){st=Object.assign(blank(),legacy);REG.legacyClaimedBy=u}
+      saveRegistry();
+      return enterAccount(u,st);
+    } else {
+      const a=REG.accounts[u];
+      if(!a)return err(CLOUD.ready?'No existe esa cuenta. Revisa el usuario o crea una cuenta nueva.':'No encuentro esa cuenta todavía; espera unos segundos mientras sincronizo e inténtalo de nuevo.');
+      if(await hashPw(p,a.salt)!==a.hash)return err('Contraseña incorrecta.');
+      return enterAccount(u,await loadAccountState(u));
+    }
+  };
+}
+function cloudNote(){
+  if(!LS_OK&&!cloudOn())return '⚠️ Este navegador no permite guardar datos: tu progreso se perderá al cerrar. Abre la página en Chrome o Safari.';
+  if(!CLOUD.ready)return 'Conectando con la nube…';
+  if(cloudOn())return '☁️ Tu progreso se guarda en este dispositivo y en la nube de tu cuenta de Claude.';
+  return '📱 Tu progreso se guarda en este dispositivo.';
+}
+async function boot(){
+  $('#app').innerHTML='<div class="center mt2 muted">Cargando…</div>';
+  const cloudP=initCloud();
+  // no hacer esperar: si en 3 s la nube no responde, seguimos con lo local
+  await Promise.race([cloudP,new Promise(r=>setTimeout(r,3000))]);
+  const sess=lget(SESS_KEY);
+  if(sess&&REG.accounts[sess]){await enterAccount(sess,await loadAccountState(sess))}
+  else authView();
+  cloudP.then(()=>{const c=$('#cst');if(c)c.textContent=cloudNote()});
+}
 const BY_ID={};BANK.forEach(q=>BY_ID[q.id]=q);
 const L_BY_ID={};LESSONS.forEach(l=>L_BY_ID[l.id]=l);
 const U_BY_ID={};UNITS.forEach(u=>U_BY_ID[u.id]=u);
@@ -194,7 +322,7 @@ function topBar(title,back='home',extra=''){return `<div class="top"><button cla
 let timerInt=null;function stopTimer(){if(timerInt){clearInterval(timerInt);timerInt=null}}
 
 // ====== Navegación ======
-function go(v,arg){stopTimer();$('#layer').innerHTML='';
+function go(v,arg){stopTimer();$('#layer').innerHTML='';if(!ACC||!S)return authView();
   if(v==='home')return home();if(v==='learn')return learnMap();if(v==='lesson')return lessonIntro(arg);
   if(v==='practice')return practiceSetup();if(v==='exam')return examSetup();if(v==='errors')return startErrors();
   if(v==='cards')return cardsSetup();if(v==='tips')return tips();if(v==='history')return historyView();}
@@ -238,19 +366,20 @@ function home(){
   <div class="card mt2">
     <div class="toggle" style="border:0;padding-top:0"><div><b>Solo material de tu maestra</b><br><small>Filtra la práctica y el simulacro a las lecturas que te dieron (sin las U4, U5 y U6 de bibliografía general).</small></div><button class="sw ${S.onlyMat?'on':''}" onclick="S.onlyMat=!S.onlyMat;save();home()" aria-label="Alternar"></button></div>
     <div class="toggle"><div><b>Fecha del examen</b><br><small>${S.examDate||'Sin definir'}</small></div><button class="chip" onclick="setDate()">Cambiar</button></div>
-    <div class="toggle"><div><b>Respaldo de progreso</b><br><small>Copia tu código para pasar tu avance a otro navegador o al link de GitHub.</small></div><div style="display:flex;gap:6px"><button class="chip" onclick="exportProg()">Exportar</button><button class="chip" onclick="importAsk()">Importar</button></div></div>
+    <div class="toggle"><div><b>Respaldo de progreso</b><br><small>Copia tu código para pasar el avance de esta cuenta a otro navegador o al link de GitHub.</small></div><div style="display:flex;gap:6px"><button class="chip" onclick="exportProg()">Exportar</button><button class="chip" onclick="importAsk()">Importar</button></div></div>
+    <div class="toggle"><div><b>Cuenta</b><br><small>👤 ${esc(ACC)}</small></div><button class="chip" onclick="logout()">Cerrar sesión</button></div>
     <div class="toggle"><div><b>Banco</b><br><small>${BANK.length} preguntas · ${LESSONS.length} lecciones · basado en el programa 2127 (plan 2024)</small></div><button class="chip" onclick="resetAsk()">Reiniciar</button></div>
   </div>
-  <p class="center muted mt" style="font-size:12px">Tu progreso se guarda solo en este navegador.</p>`);
+  <p class="center muted mt" style="font-size:12px">${cloudNote()}</p>`);
 }
 function setDate(){$('#layer').innerHTML=`<div class="modal" onclick="if(event.target===this)this.remove()"><div class="card"><h3>¿Cuándo es tu examen?</h3><p class="muted">Te muestro la cuenta regresiva en el inicio.</p><input type="date" id="dt" value="${S.examDate}"><div class="row mt"><button class="btn ghost" onclick="$('#layer').innerHTML=''">Cancelar</button><button class="btn" onclick="S.examDate=$('#dt').value;save();$('#layer').innerHTML='';home()">Guardar</button></div></div></div>`}
 function b64e(t){return btoa(unescape(encodeURIComponent(t)))}
 function b64d(t){return decodeURIComponent(escape(atob(t)))}
 function exportProg(){const code='FA1:'+b64e(JSON.stringify(S));$('#layer').innerHTML=`<div class="modal" onclick="if(event.target===this)this.remove()"><div class="card"><h3>Tu código de progreso</h3><p class="muted">Cópialo completo y pégalo en «Importar» del otro navegador.</p><textarea id="pc" readonly style="width:100%;height:140px;font:12px monospace;border-radius:12px;border:2px solid var(--line);padding:8px;background:var(--card);color:var(--ink)">${code}</textarea><div class="row mt"><button class="btn ghost" onclick="$('#layer').innerHTML=''">Cerrar</button><button class="btn" id="cpb" onclick="copyProg()">Copiar</button></div></div></div>`}
 function copyProg(){const t=$('#pc');t.select();t.setSelectionRange(0,t.value.length);const done=()=>{$('#cpb').textContent='¡Copiado!'};if(navigator.clipboard){navigator.clipboard.writeText(t.value).then(done,()=>{try{document.execCommand('copy');done()}catch(e){}})}else{try{document.execCommand('copy');done()}catch(e){}}}
-function importAsk(){$('#layer').innerHTML=`<div class="modal" onclick="if(event.target===this)this.remove()"><div class="card"><h3>Importar progreso</h3><p class="muted">Pega aquí el código que exportaste. Reemplaza el progreso de este navegador.</p><textarea id="pi" style="width:100%;height:140px;font:12px monospace;border-radius:12px;border:2px solid var(--line);padding:8px;background:var(--card);color:var(--ink)"></textarea><p id="pe" style="color:var(--bad);font-size:14px"></p><div class="row mt"><button class="btn ghost" onclick="$('#layer').innerHTML=''">Cancelar</button><button class="btn" onclick="doImport()">Importar</button></div></div></div>`}
+function importAsk(){$('#layer').innerHTML=`<div class="modal" onclick="if(event.target===this)this.remove()"><div class="card"><h3>Importar progreso</h3><p class="muted">Pega aquí el código que exportaste. Reemplaza el progreso de esta cuenta.</p><textarea id="pi" style="width:100%;height:140px;font:12px monospace;border-radius:12px;border:2px solid var(--line);padding:8px;background:var(--card);color:var(--ink)"></textarea><p id="pe" style="color:var(--bad);font-size:14px"></p><div class="row mt"><button class="btn ghost" onclick="$('#layer').innerHTML=''">Cancelar</button><button class="btn" onclick="doImport()">Importar</button></div></div></div>`}
 function doImport(){try{let t=$('#pi').value.trim().replace(/\s+/g,'');if(!t.startsWith('FA1:'))throw 0;const o=JSON.parse(b64d(t.slice(4)));if(typeof o!=='object'||!o)throw 0;S=Object.assign(blank(),o);save();$('#layer').innerHTML='';home()}catch(e){$('#pe').textContent='El código no es válido. Cópialo completo e inténtalo de nuevo.'}}
-function resetAsk(){$('#layer').innerHTML=`<div class="modal"><div class="card"><h3>¿Borrar todo tu progreso?</h3><p class="muted">Se borran tu XP, tus estrellas, tus errores y tu historial de simulacros. No se puede deshacer.</p><div class="row mt"><button class="btn ghost" onclick="$('#layer').innerHTML=''">Cancelar</button><button class="btn bad" onclick="S=blank();save();$('#layer').innerHTML='';home()">Borrar</button></div></div></div>`}
+function resetAsk(){$('#layer').innerHTML=`<div class="modal"><div class="card"><h3>¿Borrar todo tu progreso?</h3><p class="muted">Solo se borra el de la cuenta <b>${esc(ACC)}</b>: tu XP, tus estrellas, tus errores y tu historial de simulacros. No se puede deshacer.</p><div class="row mt"><button class="btn ghost" onclick="$('#layer').innerHTML=''">Cancelar</button><button class="btn bad" onclick="S=blank();save();$('#layer').innerHTML='';home()">Borrar</button></div></div></div>`}
 
 // ====== Aprender ======
 function lessonProg(l){const qs=BANK.filter(q=>q.l===l.id);const m=qs.filter(q=>S.qs[q.id]&&S.qs[q.id].h.endsWith('1')).length;return [m,qs.length]}
@@ -535,7 +664,7 @@ function tips(){
   <div class="card"><ol class="list" style="padding-left:20px;margin:0"><li>Termina la ruta de <b>Aprender</b> (1 o 2 lecciones al día en tus traslados).</li><li>Haz un <b>Simulacro rápido</b> para medirte.</li><li>Ataca tus unidades débiles con <b>Práctica guiada</b> y vacía <b>Mis errores</b>.</li><li>Los últimos días: 1 <b>Simulacro completo</b> diario hasta pasar de 8 de forma constante.</li></ol></div>`);
 }
 
-go('home');
+boot();
 </script>
 </body>
 </html>
