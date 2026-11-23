@@ -233,7 +233,8 @@ async function enterSession(session){
   await checkAdmin();
   const old=oldProgress();
   const isNew=!st;
-  if(isNew&&old&&IS_ADMIN&&!lget(MIGR_KEY)){S=blank();entering=null;return askMigrate(old,true)}
+  // al administrador se le ofrece el progreso anterior de este navegador si tiene más avance que el de su cuenta
+  if(old&&IS_ADMIN&&lget(MIGR_KEY)!==EMAIL&&(old.st.xp||0)>((st&&st.xp)||0)){S=st||blank();entering=null;return askMigrate(old,isNew)}
   S=st||blank();save();entering=null;afterEnter(isNew);
 }
 function askMigrate(old,isNew){
@@ -241,9 +242,9 @@ function askMigrate(old,isNew){
   <p>Este navegador tiene progreso guardado de antes (${esc(old.label)}): <b>${old.st.xp||0} XP</b> y <b>${old.st.answered||0}</b> preguntas respondidas.</p>
   <p class="muted">Si lo pasas, queda guardado en tu cuenta <b>${esc(EMAIL)}</b> y lo ves en cualquier dispositivo.</p>
   <button class="btn gold mt" id="mg-yes">Sí, pasarlo a mi cuenta</button>
-  <button class="btn ghost mt" id="mg-no">Empezar desde cero</button></div>`;
-  $('#mg-yes').onclick=()=>{S=Object.assign(blank(),old.st);lset(MIGR_KEY,EMAIL);save();flushCloud();afterEnter(isNew)};
-  $('#mg-no').onclick=()=>{S=blank();lset(MIGR_KEY,EMAIL);save();flushCloud();afterEnter(isNew)};
+  <button class="btn ghost mt" id="mg-no">No, dejar mi cuenta como está</button></div>`;
+  $('#mg-yes').onclick=()=>{S=Object.assign(blank(),old.st,{tutorial:S.tutorial||old.st.tutorial||0});lset(MIGR_KEY,EMAIL);save();flushCloud();afterEnter(isNew)};
+  $('#mg-no').onclick=()=>{lset(MIGR_KEY,EMAIL);save();flushCloud();afterEnter(isNew)};
 }
 // ---- tutorial breve: solo la primera vez que entra una cuenta nueva ----
 function afterEnter(isNew){if(isNew&&!S.tutorial)return tutorial(0);go('home')}
