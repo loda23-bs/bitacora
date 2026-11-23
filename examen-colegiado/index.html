@@ -206,26 +206,63 @@ function oldProgress(){
   const useful=list.filter(x=>x.st.answered||x.st.xp||Object.keys(x.st.lessons||{}).length);
   useful.sort((a,b)=>(b.st.xp||0)-(a.st.xp||0));return useful[0]||null;
 }
+// ---- administrador: la primera cuenta que entra (tabla fa2127_admin, una sola fila) ----
+let IS_ADMIN=false;
+async function checkAdmin(){
+  IS_ADMIN=false;
+  try{
+    let {data}=await withTimeout(sb.from('fa2127_admin').select('user_id').maybeSingle(),8000);
+    if(!data){await withTimeout(sb.from('fa2127_admin').insert({user_id:ACC,email:EMAIL}),8000);
+      ({data}=await withTimeout(sb.from('fa2127_admin').select('user_id').maybeSingle(),8000))}
+    IS_ADMIN=!!(data&&data.user_id===ACC);
+  }catch(e){IS_ADMIN=false}
+}
 let entering=null;
 async function enterSession(session){
   if(ACC===session.user.id&&S)return;if(entering===session.user.id)return;entering=session.user.id;
   ACC=session.user.id;EMAIL=session.user.email||'';cloudLast='';
   $('#app').innerHTML='<div class="center mt2 muted">Cargando tu progreso…</div>';
   let st=await loadAccountState(ACC);
+  await checkAdmin();
   const old=oldProgress();
-  if(!st&&old&&!lget(MIGR_KEY)){S=blank();entering=null;return askMigrate(old)}
-  S=st||blank();save();entering=null;go('home');
+  const isNew=!st;
+  if(isNew&&old&&IS_ADMIN&&!lget(MIGR_KEY)){S=blank();entering=null;return askMigrate(old,true)}
+  S=st||blank();save();entering=null;afterEnter(isNew);
 }
-function askMigrate(old){
+function askMigrate(old,isNew){
   $('#app').innerHTML=`<div class="card mt2"><h2>¿Pasar tu progreso anterior?</h2>
   <p>Este navegador tiene progreso guardado de antes (${esc(old.label)}): <b>${old.st.xp||0} XP</b> y <b>${old.st.answered||0}</b> preguntas respondidas.</p>
   <p class="muted">Si lo pasas, queda guardado en tu cuenta <b>${esc(EMAIL)}</b> y lo ves en cualquier dispositivo.</p>
   <button class="btn gold mt" id="mg-yes">Sí, pasarlo a mi cuenta</button>
   <button class="btn ghost mt" id="mg-no">Empezar desde cero</button></div>`;
-  $('#mg-yes').onclick=()=>{S=Object.assign(blank(),old.st);lset(MIGR_KEY,EMAIL);save();flushCloud();go('home')};
-  $('#mg-no').onclick=()=>{S=blank();lset(MIGR_KEY,EMAIL);save();flushCloud();go('home')};
+  $('#mg-yes').onclick=()=>{S=Object.assign(blank(),old.st);lset(MIGR_KEY,EMAIL);save();flushCloud();afterEnter(isNew)};
+  $('#mg-no').onclick=()=>{S=blank();lset(MIGR_KEY,EMAIL);save();flushCloud();afterEnter(isNew)};
 }
-async function logout(){await flushCloud();try{await sb.auth.signOut()}catch(e){}ACC=null;S=null;EMAIL='';entering=null;authView('login')}
+// ---- tutorial breve: solo la primera vez que entra una cuenta nueva ----
+function afterEnter(isNew){if(isNew&&!S.tutorial)return tutorial(0);go('home')}
+const TUT=[
+ ['👋','Bienvenido','Esta app te prepara para el examen colegiado de Fundamentos de Administración: 100 preguntas de opción múltiple en 1 h 30 min. Te enseño cómo usarla en 30 segundos.'],
+ ['📚','1 · Aprender','Lecciones cortas por unidad: tarjetas de concepto y preguntas. Tienes 3 vidas ❤️ y ganas estrellas ⭐ por tu precisión. Empieza aquí.'],
+ ['🧠','2 · Práctica guiada','Preguntas tipo examen. En cada una te digo si acertaste y por qué las otras opciones están mal.'],
+ ['⏱️','3 · Simulacro','100 preguntas en 90 minutos, sin pistas, como el examen real. Al final ves tu calificación por unidad.'],
+ ['🎯','Refuerzo','«Mis errores» guarda las preguntas que fallas para repetirlas. «Repaso exprés» y «Trampas y estrategia» sirven para repasar rápido.'],
+ ['☁️','Tu progreso','Se guarda solo en tu cuenta. Entra con tu correo desde cualquier celular o computadora y sigue donde te quedaste. En el inicio puedes poner la fecha de tu examen.']
+];
+function tutorial(i){
+  keyHandler=null;const t=TUT[i],last=i===TUT.length-1;
+  const done=()=>{S.tutorial=1;save();go('home')};
+  $('#app').innerHTML=`<div class="card mt2 center pop" style="padding:28px 22px">
+    <div style="font-size:52px;line-height:1">${t[0]}</div>
+    <h2 class="mt">${t[1]}</h2>
+    <p class="mt" style="font-size:17px">${t[2]}</p>
+    <div style="display:flex;justify-content:center;gap:6px;margin:18px 0 4px">${TUT.map((_,k)=>`<span style="width:${k===i?22:8}px;height:8px;border-radius:99px;background:${k===i?'var(--gold)':'var(--line)'}"></span>`).join('')}</div>
+    <div class="row mt">${i?`<button class="btn ghost" id="tb">Atrás</button>`:`<button class="btn ghost" id="ts">Saltar</button>`}<button class="btn ${last?'gold':''}" id="tn">${last?'¡Empezar!':'Siguiente'}</button></div>
+  </div>`;
+  if(i)$('#tb').onclick=()=>tutorial(i-1);else $('#ts').onclick=done;
+  $('#tn').onclick=()=>last?done():tutorial(i+1);
+  window.scrollTo(0,0);
+}
+async function logout(){await flushCloud();try{await sb.auth.signOut()}catch(e){}ACC=null;S=null;EMAIL='';IS_ADMIN=false;entering=null;authView('login')}
 function authErr(e){
   const m=String(e&&e.message||'');
   if(/Invalid login credentials/i.test(m))return 'Correo o contraseña incorrectos.';
@@ -386,7 +423,7 @@ function home(){
     <div class="toggle" style="border:0;padding-top:0"><div><b>Solo material de tu maestra</b><br><small>Filtra la práctica y el simulacro a las lecturas que te dieron (sin las U4, U5 y U6 de bibliografía general).</small></div><button class="sw ${S.onlyMat?'on':''}" onclick="S.onlyMat=!S.onlyMat;save();home()" aria-label="Alternar"></button></div>
     <div class="toggle"><div><b>Fecha del examen</b><br><small>${S.examDate||'Sin definir'}</small></div><button class="chip" onclick="setDate()">Cambiar</button></div>
     <div class="toggle"><div><b>Respaldo de progreso</b><br><small>Copia tu código para pasar el avance de esta cuenta a otro navegador o al link de GitHub.</small></div><div style="display:flex;gap:6px"><button class="chip" onclick="exportProg()">Exportar</button><button class="chip" onclick="importAsk()">Importar</button></div></div>
-    <div class="toggle"><div><b>Cuenta</b><br><small>👤 ${esc(EMAIL)}</small></div><button class="chip" onclick="logout()">Cerrar sesión</button></div>
+    <div class="toggle"><div><b>Cuenta</b><br><small>👤 ${esc(EMAIL)}${IS_ADMIN?' · 👑 Administrador':''}</small></div><button class="chip" onclick="logout()">Cerrar sesión</button></div>
     <div class="toggle"><div><b>Banco</b><br><small>${BANK.length} preguntas · ${LESSONS.length} lecciones · basado en el programa 2127 (plan 2024)</small></div><button class="chip" onclick="resetAsk()">Reiniciar</button></div>
   </div>
   <p class="center muted mt" style="font-size:12px">${cloudNote()}</p>`);
