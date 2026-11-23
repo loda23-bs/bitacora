@@ -201,13 +201,7 @@ async function loadAccountState(uid){
   return st?Object.assign(blank(),st):null;
 }
 // progreso anterior a las cuentas de correo (cuentas de usuario o sin cuenta), el que tenga más avance
-function oldProgress(){
-  const list=[];const reg=lget(REG_KEY);
-  if(reg&&reg.accounts)for(const n of Object.keys(reg.accounts)){const st=lget(OLD_PREFIX+n);if(st)list.push({label:'usuario «'+n+'»',st})}
-  const lg=lget(LEGACY_KEY);if(lg)list.push({label:'sin cuenta',st:lg});
-  const useful=list.filter(x=>x.st.answered||x.st.xp||Object.keys(x.st.lessons||{}).length);
-  useful.sort((a,b)=>(b.st.xp||0)-(a.st.xp||0));return useful[0]||null;
-}
+function oldProgress(){const f=findOld();return f.length?{label:f[0].lab.replace(/^Usuario /,'usuario '),st:f[0].st}:null}
 // ---- cuentas desactivadas por el administrador (tabla fa2127_cuentas, vía funciones) ----
 async function isDisabled(){try{const {data,error}=await withTimeout(sb.rpc('fa2127_registrar'),8000);return !error&&data===true}catch(e){return false}}
 async function kickOut(){try{await sb.auth.signOut()}catch(e){}ACC=null;S=null;EMAIL='';IS_ADMIN=false;entering=null;
@@ -454,6 +448,27 @@ function adminToggle(id,off,email){
     catch(e){$('#admsg').textContent='Sin conexión.';$('#adok').disabled=false;return}
     $('#layer').innerHTML='';adminView()};
 }
+
+// ---- buscar progreso guardado en este navegador (cualquier versión anterior) ----
+function findOld(){
+  const found=[];
+  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k||!/^fa2127_(v1$|acc_|mail_)/.test(k))continue;
+    if(k===ACC_PREFIX+ACC)continue;const st=lget(k);if(!st||typeof st!=='object')continue;
+    if(!(st.xp||st.answered||Object.keys(st.lessons||{}).length))continue;
+    const lab=k==='fa2127_v1'?'Sin cuenta':k.startsWith('fa2127_acc_')?'Usuario «'+k.slice(11)+'»':'Otra cuenta de correo';
+    found.push({k,lab,st})}}catch(e){}
+  found.sort((a,b)=>(b.st.xp||0)-(a.st.xp||0));return found}
+function scanOld(){const found=findOld();
+  const L=found.map((f,i)=>{const ls=Object.keys(f.st.lessons||{}).length;return `<button class="card mode mt" style="text-align:left" onclick="useOld(${i})"><div><h3>${esc(f.lab)}</h3><p>${f.st.xp||0} XP · ${f.st.answered||0} preguntas · ${ls} lecciones${f.st.lastDay?' · último día '+esc(f.st.lastDay):''}</p></div></button>`}).join('');
+  window.__old=found;
+  $('#layer').innerHTML=`<div class="modal" onclick="if(event.target===this)this.remove()"><div class="card" style="max-height:90vh;overflow:auto"><h3>Progreso en este navegador</h3>
+  <p class="muted">Tu cuenta ahora: <b>${S.xp||0} XP</b>, ${S.answered||0} preguntas.</p>
+  ${found.length?'<p class="muted">Toca el que quieras pasar a tu cuenta. Reemplaza el progreso actual de tu cuenta.</p>'+L:'<p>No encontré progreso anterior en este navegador. Prueba en el otro celular o navegador donde estudiabas.</p>'}
+  <button class="btn ghost mt" onclick="$('#layer').innerHTML=''">Cerrar</button></div></div>`;
+}
+function useOld(i){const f=(window.__old||[])[i];if(!f)return;
+  S=Object.assign(blank(),f.st,{tutorial:1});lset(MIGR_KEY,EMAIL);save();flushCloud();$('#layer').innerHTML='';
+  go('home')}
 // ====== Inicio ======
 function home(){
   const acc=S.answered?Math.round(100*S.correct/S.answered):0;
@@ -495,6 +510,7 @@ function home(){
     <div class="toggle"><div><b>Fecha del examen</b><br><small>${S.examDate||'Sin definir'}</small></div><button class="chip" onclick="setDate()">Cambiar</button></div>
     <div class="toggle"><div><b>Respaldo de progreso</b><br><small>Copia tu código para pasar el avance de esta cuenta a otro navegador o al link de GitHub.</small></div><div style="display:flex;gap:6px"><button class="chip" onclick="exportProg()">Exportar</button><button class="chip" onclick="importAsk()">Importar</button></div></div>
     <div class="toggle"><div><b>Cuenta</b><br><small>👤 ${esc(EMAIL)}${IS_ADMIN?' · 👑 Administrador':''}</small></div><button class="chip" onclick="logout()">Cerrar sesión</button></div>
+    <div class="toggle"><div><b>Buscar progreso anterior</b><br><small>Revisa este navegador por si tiene avance guardado de antes y lo pasa a tu cuenta.</small></div><button class="chip" onclick="scanOld()">Buscar</button></div>
     ${IS_ADMIN?`<div class="toggle"><div><b>👑 Administrar cuentas</b><br><small>Ve quién usa la app y desactiva cuentas que no conozcas.</small></div><button class="chip" onclick="go('admin')">Abrir</button></div>`:''}
     <div class="toggle"><div><b>Banco</b><br><small>${BANK.length} preguntas · ${LESSONS.length} lecciones · basado en el programa 2127 (plan 2024)</small></div><button class="chip" onclick="resetAsk()">Reiniciar</button></div>
   </div>
