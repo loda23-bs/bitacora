@@ -171,6 +171,7 @@ const ACC_PREFIX='fa2127_mail_';      // progreso por cuenta de correo (copia lo
 const MIGR_KEY='fa2127_migrated';     // a qué cuenta de correo ya se pasó el progreso anterior
 let S=null, ACC=null, EMAIL='';       // estado, id de la cuenta y correo
 let sb=null;
+let RECOVERY=/type=recovery/.test(location.hash||'');
 try{if(window.supabase)sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,detectSessionInUrl:true}})}catch(e){sb=null}
 function blank(){return {xp:0,streak:0,lastDay:'',lessons:{},qs:{},wrong:{},exams:[],examDate:'',answered:0,correct:0,onlyMat:false,updated:0}}
 const LS_OK=(()=>{try{localStorage.setItem('__t','1');localStorage.removeItem('__t');return true}catch(e){return false}})();
@@ -272,7 +273,7 @@ async function logout(){await flushCloud();try{await sb.auth.signOut()}catch(e){
 function authErr(e){
   const m=String(e&&e.message||'');
   if(/Invalid login credentials/i.test(m))return 'Correo o contraseña incorrectos.';
-  if(/already registered/i.test(m))return 'Ese correo ya tiene cuenta. Inicia sesión.';
+  if(/already registered/i.test(m))return 'Ese correo ya tiene cuenta (puede ser de la Bitácora o de Lecturas). Inicia sesión con esa contraseña o toca «¿Olvidaste tu contraseña?».';
   if(/Password should be/i.test(m))return 'La contraseña debe tener al menos 6 caracteres.';
   if(/valid email|invalid format|Unable to validate email/i.test(m))return 'Escribe un correo válido.';
   if(/rate limit|security purposes/i.test(m))return 'Espera un momento antes de intentarlo otra vez.';
@@ -297,6 +298,7 @@ function authView(mode,msg){
       ${mode==='register'?`<label class="mt" style="display:block"><b>Repite la contraseña</b><input id="ap2" class="inp" type="password" autocomplete="new-password" required></label>`:''}
       <div id="amsg" class="mt" style="color:var(--bad);font-weight:600">${msg?esc(msg):''}</div>
       <button class="btn gold mt" type="submit" id="asb">${mode==='login'?'Entrar':'Crear cuenta'}</button>
+      ${mode==='login'?`<button type="button" class="btn ghost mt" onclick="forgotView($('#au').value)">¿Olvidaste tu contraseña?</button>`:''}
     </form>
   </div>
   <p class="center muted mt" style="font-size:12px">☁️ Tu progreso se guarda en tu cuenta y en este dispositivo.</p>`;
@@ -309,7 +311,7 @@ function authView(mode,msg){
         if(password!==$('#ap2').value)return err('Las contraseñas no coinciden.');
         const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
         if(error)return err(authErr(error));
-        if(data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length)return err('Ese correo ya tiene cuenta. Inicia sesión.');
+        if(data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length)return err('Ese correo ya tiene cuenta (puede ser de la Bitácora o de Lecturas). Inicia sesión con esa contraseña o toca «¿Olvidaste tu contraseña?».');
         if(data.session)return enterSession(data.session);
         return verifyView(email);
       } else {
@@ -319,6 +321,40 @@ function authView(mode,msg){
       }
     }catch(x){err(authErr(x))}
   };
+}
+function forgotView(pre){
+  keyHandler=null;
+  $('#app').innerHTML=hero('Recupera tu acceso.')+`<div class="card mt2">
+    <h2>¿Olvidaste tu contraseña?</h2>
+    <p class="muted">Escribe tu correo y te enviamos un enlace para crear una contraseña nueva. Es la misma cuenta de la Bitácora y de Lecturas.</p>
+    <form id="ff"><label><b>Correo electrónico</b><input id="fe" class="inp" type="email" autocomplete="email" autocapitalize="none" required value="${esc(pre||'')}"></label>
+    <div id="fmsg" class="mt" style="font-weight:600"></div>
+    <button class="btn gold mt" type="submit" id="fsb">Enviar enlace</button>
+    <button type="button" class="btn ghost mt" onclick="authView('login')">Volver</button></form></div>`;
+  $('#ff').onsubmit=async e=>{e.preventDefault();const b=$('#fsb');b.disabled=true;
+    const email=$('#fe').value.trim().toLowerCase();
+    try{const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+      if(error){$('#fmsg').style.color='var(--bad)';$('#fmsg').textContent=authErr(error);b.disabled=false;return}
+      $('#fmsg').style.color='var(--ok)';$('#fmsg').textContent='Listo. Haz clic en el enlace de tu correo electrónico para crear tu contraseña nueva. Si no lo ves, revisa spam.';
+      setTimeout(()=>{b.disabled=false},30000)}
+    catch(x){$('#fmsg').style.color='var(--bad)';$('#fmsg').textContent=authErr(x);b.disabled=false}};
+}
+function newPassView(){
+  if(document.getElementById('nf'))return;
+  keyHandler=null;
+  $('#app').innerHTML=hero('Crea tu contraseña nueva.')+`<div class="card mt2">
+    <h2>Contraseña nueva</h2>
+    <form id="nf"><label><b>Contraseña nueva</b><br><small class="muted">Mínimo 6 caracteres</small><input id="np" class="inp" type="password" minlength="6" autocomplete="new-password" required></label>
+    <label class="mt" style="display:block"><b>Repítela</b><input id="np2" class="inp" type="password" autocomplete="new-password" required></label>
+    <div id="nmsg" class="mt" style="color:var(--bad);font-weight:600"></div>
+    <button class="btn gold mt" type="submit" id="nsb">Guardar y entrar</button></form></div>`;
+  $('#nf').onsubmit=async e=>{e.preventDefault();const b=$('#nsb');b.disabled=true;const p=$('#np').value;
+    const err=m=>{$('#nmsg').textContent=m;b.disabled=false};
+    if(p.length<6)return err('La contraseña debe tener al menos 6 caracteres.');
+    if(p!==$('#np2').value)return err('Las contraseñas no coinciden.');
+    try{const {data,error}=await sb.auth.updateUser({password:p});if(error)return err(authErr(error));
+      RECOVERY=false;const {data:sd}=await sb.auth.getSession();if(sd&&sd.session)return enterSession(sd.session);authView('login','Contraseña cambiada. Inicia sesión.')}
+    catch(x){err(authErr(x))}};
 }
 function verifyView(email){
   keyHandler=null;
@@ -347,13 +383,14 @@ async function boot(){
   if(!sb)return authView();
   let session=null;
   try{const {data}=await withTimeout(sb.auth.getSession(),8000);session=data.session}catch(e){}
+  if(session&&RECOVERY){history.replaceState(null,'',location.pathname);return newPassView()}
   if(session)return enterSession(session);
   const h=location.hash||'';
   if(/error_description=/.test(h)){const m=decodeURIComponent((h.match(/error_description=([^&]+)/)||[])[1]||'').replace(/\+/g,' ');history.replaceState(null,'',location.pathname);
     return authView('login',/expired|invalid/i.test(m)?'El enlace ya venció o ya se usó. Inicia sesión; si tu cuenta no está verificada, te mostraremos cómo reenviar el correo.':'No se pudo verificar: '+m)}
   authView();
 }
-if(sb)sb.auth.onAuthStateChange((ev,session)=>{if(ev==='SIGNED_IN'&&session&&!ACC){if(/access_token=/.test(location.hash))history.replaceState(null,'',location.pathname);enterSession(session)}});
+if(sb)sb.auth.onAuthStateChange((ev,session)=>{if(ev==='PASSWORD_RECOVERY'||(RECOVERY&&session&&!ACC)){RECOVERY=true;history.replaceState(null,'',location.pathname);return newPassView()}if(ev==='SIGNED_IN'&&session&&!ACC){if(/access_token=/.test(location.hash))history.replaceState(null,'',location.pathname);enterSession(session)}});
 const BY_ID={};BANK.forEach(q=>BY_ID[q.id]=q);
 const L_BY_ID={};LESSONS.forEach(l=>L_BY_ID[l.id]=l);
 const U_BY_ID={};UNITS.forEach(u=>U_BY_ID[u.id]=u);
