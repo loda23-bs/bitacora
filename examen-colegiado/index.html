@@ -190,6 +190,7 @@ async function flushCloud(){
   try{const {error}=await sb.from('notas_lectura').upsert({user_id:ACC,plan:PLAN_KEY,data:JSON.parse(body),updated_at:new Date().toISOString()});
     cloudOk=!error;if(!error)cloudLast=body}catch(e){cloudOk=false}
   cloudBusy=false;
+  if(!cloudOk&&ACC&&await isDisabled())kickOut();
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushCloud()});
 async function loadAccountState(uid){
@@ -206,6 +207,10 @@ function oldProgress(){
   const useful=list.filter(x=>x.st.answered||x.st.xp||Object.keys(x.st.lessons||{}).length);
   useful.sort((a,b)=>(b.st.xp||0)-(a.st.xp||0));return useful[0]||null;
 }
+// ---- cuentas desactivadas por el administrador (tabla fa2127_cuentas, vía funciones) ----
+async function isDisabled(){try{const {data,error}=await withTimeout(sb.rpc('fa2127_registrar'),8000);return !error&&data===true}catch(e){return false}}
+async function kickOut(){try{await sb.auth.signOut()}catch(e){}ACC=null;S=null;EMAIL='';IS_ADMIN=false;entering=null;
+  authView('login','Tu cuenta fue desactivada por el administrador. Si es un error, pídele que la vuelva a activar.')}
 // ---- administrador: la primera cuenta que entra (tabla fa2127_admin, una sola fila) ----
 let IS_ADMIN=false;
 async function checkAdmin(){
@@ -222,6 +227,7 @@ async function enterSession(session){
   if(ACC===session.user.id&&S)return;if(entering===session.user.id)return;entering=session.user.id;
   ACC=session.user.id;EMAIL=session.user.email||'';cloudLast='';
   $('#app').innerHTML='<div class="center mt2 muted">Cargando tu progreso…</div>';
+  if(await isDisabled()){entering=null;return kickOut()}
   let st=await loadAccountState(ACC);
   await checkAdmin();
   const old=oldProgress();
@@ -381,8 +387,36 @@ let timerInt=null;function stopTimer(){if(timerInt){clearInterval(timerInt);time
 function go(v,arg){stopTimer();$('#layer').innerHTML='';if(!ACC||!S)return authView();
   if(v==='home')return home();if(v==='learn')return learnMap();if(v==='lesson')return lessonIntro(arg);
   if(v==='practice')return practiceSetup();if(v==='exam')return examSetup();if(v==='errors')return startErrors();
-  if(v==='cards')return cardsSetup();if(v==='tips')return tips();if(v==='history')return historyView();}
+  if(v==='cards')return cardsSetup();if(v==='tips')return tips();if(v==='history')return historyView();if(v==='admin')return adminView();}
 
+
+// ====== Administrador: cuentas ======
+const fmtD=t=>{try{return new Date(t).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})}catch(e){return ''}};
+async function adminView(){
+  if(!IS_ADMIN)return go('home');
+  view(topBar('Cuentas')+'<p class="muted">Cargando cuentas…</p>');
+  let rows=null,err='';
+  try{const {data,error}=await withTimeout(sb.rpc('fa2127_listar'),10000);if(error)err=error.message;else rows=data||[]}catch(e){err='Sin conexión.'}
+  if(!rows){view(topBar('Cuentas')+`<div class="card"><p>No se pudieron cargar las cuentas. ${esc(err)}</p><button class="btn mt" onclick="adminView()">Reintentar</button></div>`);return}
+  const act=rows.filter(r=>!r.desactivada).length;
+  view(topBar('Cuentas')+`<p class="muted" style="margin-top:-4px">${rows.length} cuenta${rows.length===1?'':'s'} · ${act} activa${act===1?'':'s'}. Una cuenta desactivada ya no puede entrar ni guardar progreso. Puedes volver a activarla cuando quieras.</p>
+  <div class="grid">${rows.map(r=>`<div class="card" style="${r.desactivada?'opacity:.7;border-color:var(--bad)':''}">
+    <div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between">
+      <div style="min-width:0"><b style="word-break:break-all">${esc(r.email||'(sin correo)')}</b><br>
+      <small class="muted">Creada: ${fmtD(r.creada)} · Última vez: ${fmtD(r.ultima_vez)}</small><br>
+      ${r.es_admin?'<span class="pill">👑 Administrador (tú)</span>':r.desactivada?'<span class="pill" style="background:var(--bad-soft);color:var(--bad)">Desactivada</span>':'<span class="pill" style="background:var(--ok-soft);color:var(--ok)">Activa</span>'}</div>
+      ${r.es_admin?'':`<button class="chip" style="flex:none" onclick="adminToggle('${r.user_id}',${!r.desactivada},'${esc(r.email||'').replace(/'/g,'')}')">${r.desactivada?'Activar':'Desactivar'}</button>`}
+    </div></div>`).join('')}</div>`);
+}
+function adminToggle(id,off,email){
+  $('#layer').innerHTML=`<div class="modal" onclick="if(event.target===this)this.remove()"><div class="card"><h3>${off?'¿Desactivar esta cuenta?':'¿Volver a activar esta cuenta?'}</h3>
+  <p class="muted"><b>${esc(email)}</b> ${off?'ya no podrá entrar ni guardar progreso.':'podrá entrar otra vez con su progreso.'}</p><p id="admsg" style="color:var(--bad)"></p>
+  <div class="row mt"><button class="btn ghost" onclick="$('#layer').innerHTML=''">Cancelar</button><button class="btn ${off?'bad':'ok'}" id="adok">${off?'Desactivar':'Activar'}</button></div></div></div>`;
+  $('#adok').onclick=async()=>{$('#adok').disabled=true;
+    try{const {error}=await sb.rpc('fa2127_desactivar',{objetivo:id,valor:off});if(error){$('#admsg').textContent='No se pudo: '+error.message;$('#adok').disabled=false;return}}
+    catch(e){$('#admsg').textContent='Sin conexión.';$('#adok').disabled=false;return}
+    $('#layer').innerHTML='';adminView()};
+}
 // ====== Inicio ======
 function home(){
   const acc=S.answered?Math.round(100*S.correct/S.answered):0;
@@ -424,6 +458,7 @@ function home(){
     <div class="toggle"><div><b>Fecha del examen</b><br><small>${S.examDate||'Sin definir'}</small></div><button class="chip" onclick="setDate()">Cambiar</button></div>
     <div class="toggle"><div><b>Respaldo de progreso</b><br><small>Copia tu código para pasar el avance de esta cuenta a otro navegador o al link de GitHub.</small></div><div style="display:flex;gap:6px"><button class="chip" onclick="exportProg()">Exportar</button><button class="chip" onclick="importAsk()">Importar</button></div></div>
     <div class="toggle"><div><b>Cuenta</b><br><small>👤 ${esc(EMAIL)}${IS_ADMIN?' · 👑 Administrador':''}</small></div><button class="chip" onclick="logout()">Cerrar sesión</button></div>
+    ${IS_ADMIN?`<div class="toggle"><div><b>👑 Administrar cuentas</b><br><small>Ve quién usa la app y desactiva cuentas que no conozcas.</small></div><button class="chip" onclick="go('admin')">Abrir</button></div>`:''}
     <div class="toggle"><div><b>Banco</b><br><small>${BANK.length} preguntas · ${LESSONS.length} lecciones · basado en el programa 2127 (plan 2024)</small></div><button class="chip" onclick="resetAsk()">Reiniciar</button></div>
   </div>
   <p class="center muted mt" style="font-size:12px">${cloudNote()}</p>`);
