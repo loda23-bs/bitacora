@@ -386,6 +386,10 @@ const errHtml=()=>'<p class="msg err" id="form-err" role="alert"'+(ui.err?'':' h
 const submit=(label)=>'<button class="btn primary" type="submit"'+(ui.busy?' disabled':'')+'>'+(ui.busy?'Guardando…':label)+'</button>';
 
 function authView(){
+  if(ui.auth==='verify')return '<div class="stack"><h2>Verifica tu cuenta</h2>'+
+    '<p>Haz clic en el enlace de tu correo electrónico para verificar tu cuenta.</p>'+
+    (ui.verifyMail?'<p class="muted">Lo enviamos a <strong>'+esc(ui.verifyMail)+'</strong>. Si no lo ves, revisa la carpeta de spam.</p>':'<p class="muted">Si no lo ves, revisa la carpeta de spam.</p>')+
+    '<button type="button" class="btn primary" data-act="verified">Ya lo verifiqué, entrar</button></div>';
   const reg=ui.auth==='signup';
   return '<form class="stack" data-form="auth"><h2>'+(reg?'Crea la cuenta de tu taller':'Entra a tu taller')+'</h2>'+
     '<div class="field"><label for="a-mail">Correo</label><input id="a-mail" name="email" type="email" autocomplete="email" required></div>'+
@@ -607,6 +611,7 @@ const act={
   newSvc:()=>go('svcForm',{edit:null}),
   editSvc:d=>go('svcForm',{edit:d.id}),
   back:()=>go(ui.car&&(ui.view==='svcForm'||ui.edit)?'car':'home',{edit:null}),
+  verified:()=>{ui.auth='login';ui.err=null;ui.msg=null;render();},
   authMode:()=>{ui.auth=ui.auth==='login'?'signup':'login';ui.err=null;render();},
   logout:()=>run(async()=>{await sb.auth.signOut();session=null;taller=null;coches=[];servicios=[];go('home');}),
   chip:d=>{const t=document.getElementById('s-serv');t.value=t.value.trim()?t.value.trim().replace(/[,.]$/,'')+', '+d.t:d.t;t.focus();},
@@ -636,9 +641,9 @@ const num=(fd,k)=>{const v=str(fd,k);return v===''?null:Number(v);};
 const forms={
   auth:fd=>run(async()=>{
     const email=str(fd,'email'),password=String(fd.get('pass')||'');ui.err=null;
-    const r=ui.auth==='signup'?await sb.auth.signUp({email,password}):await sb.auth.signInWithPassword({email,password});
-    if(r.error){ui.err=errText(r.error);return;}
-    if(ui.auth==='signup'&&!r.data.session){ui.auth='login';ui.msg={t:'ok',s:'Te enviamos un correo para confirmar tu cuenta. Confírmala y luego entra aquí.'};return;}
+    const r=ui.auth==='signup'?await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}}):await sb.auth.signInWithPassword({email,password});
+    if(r.error){if(/Email not confirmed/i.test(String(r.error.message||''))){ui.auth='verify';ui.verifyMail=email;ui.msg=null;return;}ui.err=errText(r.error);return;}
+    if(ui.auth==='signup'&&!r.data.session){ui.auth='verify';ui.verifyMail=email;ui.msg=null;return;}
     session=r.data.session;await load();}),
   taller:fd=>run(async()=>{
     const data={nombre:str(fd,'nombre'),telefono:str(fd,'telefono'),whatsapp:str(fd,'whatsapp')};
