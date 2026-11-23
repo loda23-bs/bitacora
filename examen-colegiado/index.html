@@ -273,7 +273,7 @@ async function logout(){await flushCloud();try{await sb.auth.signOut()}catch(e){
 function authErr(e){
   const m=String(e&&e.message||'');
   if(/Invalid login credentials/i.test(m))return 'Correo o contraseña incorrectos.';
-  if(/already registered/i.test(m))return 'Ese correo ya tiene cuenta (puede ser de la Bitácora o de Lecturas). Inicia sesión con esa contraseña o toca «¿Olvidaste tu contraseña?».';
+  if(/already registered/i.test(m))return 'Ese correo ya tiene cuenta (puede ser de la Bitácora o de Lecturas). Inicia sesión con esa contraseña.';
   if(/Password should be/i.test(m))return 'La contraseña debe tener al menos 6 caracteres.';
   if(/valid email|invalid format|Unable to validate email/i.test(m))return 'Escribe un correo válido.';
   if(/rate limit|security purposes/i.test(m))return 'Espera un momento antes de intentarlo otra vez.';
@@ -298,7 +298,6 @@ function authView(mode,msg){
       ${mode==='register'?`<label class="mt" style="display:block"><b>Repite la contraseña</b><input id="ap2" class="inp" type="password" autocomplete="new-password" required></label>`:''}
       <div id="amsg" class="mt" style="color:var(--bad);font-weight:600">${msg?esc(msg):''}</div>
       <button class="btn gold mt" type="submit" id="asb">${mode==='login'?'Entrar':'Crear cuenta'}</button>
-      ${mode==='login'?`<button type="button" class="btn ghost mt" onclick="forgotView($('#au').value)">¿Olvidaste tu contraseña?</button>`:''}
     </form>
   </div>
   <p class="center muted mt" style="font-size:12px">☁️ Tu progreso se guarda en tu cuenta y en este dispositivo.</p>`;
@@ -311,7 +310,7 @@ function authView(mode,msg){
         if(password!==$('#ap2').value)return err('Las contraseñas no coinciden.');
         const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
         if(error)return err(authErr(error));
-        if(data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length)return err('Ese correo ya tiene cuenta (puede ser de la Bitácora o de Lecturas). Inicia sesión con esa contraseña o toca «¿Olvidaste tu contraseña?».');
+        if(data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length)return err('Ese correo ya tiene cuenta (puede ser de la Bitácora o de Lecturas). Inicia sesión con esa contraseña.');
         if(data.session)return enterSession(data.session);
         return verifyView(email);
       } else {
