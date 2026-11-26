@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e4d64">
+<title>Lector en voz alta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#0b1c22);--ink:light-dark(#14232a,#e7f0f2);--muted:light-dark(#55666d,#9db2b8);
+--band:light-dark(#0e4d64,#0e3442);--bandInk:#f2fafc;--card:light-dark(#f2f7f8,#12313c);--line:light-dark(#d5e2e6,#24485a);
+--acc:#ff6b4a;--accSoft:light-dark(#ffe4dd,#4a2a22);--field:light-dark(#ffffff,#0b1c22);--ok:light-dark(#0e7a55,#5fd6a6)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Literata,Georgia,serif;font-weight:700;line-height:1.1;text-wrap:balance;margin:0}
+.band{padding:clamp(24px,4vw,48px) max(5vw,16px)}
+.wrap{max-width:1000px;margin:0 auto}
+header.band{background:var(--band);color:var(--bandInk)}
+header h1{font-size:clamp(30px,5vw,44px)}
+header p{margin:8px 0 0;opacity:.85}
+.stats{display:flex;flex-wrap:wrap;gap:12px 28px;margin-top:22px}
+.stat b{display:block;font-size:26px;font-family:Literata,serif;white-space:nowrap}
+.stat span{font-size:13px;opacity:.8}
+.meter{height:10px;background:rgba(255,255,255,.18);border-radius:6px;margin-top:18px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--acc);border-radius:6px;transition:width .5s}
+.acct{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:18px;font-size:14px}
+.acct .pill{background:rgba(255,255,255,.14);padding:6px 12px;border-radius:999px}
+.linkbtn{background:none;border:0;color:var(--bandInk);text-decoration:underline;font:inherit;cursor:pointer;min-height:44px;padding:0 4px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:16px max(5vw,16px) 4px;max-width:1000px;margin:0 auto}
+.tab{flex:none;min-height:44px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:500 15px Inter,sans-serif;cursor:pointer;white-space:nowrap}
+.tab[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab.done::after{content:" ✓";color:var(--acc);font-weight:700}
+.tab.write{border-style:dashed}
+.tab:focus-visible,button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.day{background:var(--card);border-radius:18px;padding:clamp(18px,3vw,30px);border-left:8px solid var(--acc)}
+.dayhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:baseline}
+.dayhead h2{font-size:clamp(26px,4vw,34px)}
+.meta{color:var(--muted);font-size:14px;white-space:nowrap}
+.read{display:grid;gap:14px;margin-top:18px}
+.item{background:var(--field);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 18px;align-items:start}
+.item .book{font-size:13px;color:var(--muted)}
+.item h3{font-size:20px;margin:2px 0 6px}
+.item ul{margin:0;padding-left:18px;color:var(--muted);font-size:15px}
+.pages{text-align:right}
+.pages b{display:block;font-family:Literata,serif;font-size:clamp(26px,5vw,36px);line-height:1;white-space:nowrap;color:var(--acc)}
+.pages span{font-size:12px;color:var(--muted);white-space:nowrap}
+.bm{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:var(--muted);grid-column:1/-1}
+.bm input{width:90px;min-height:40px;padding:6px 10px;border-radius:8px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:16px Inter,sans-serif}
+.check{display:flex;align-items:center;gap:10px;margin-top:14px;min-height:44px;font-weight:600;cursor:pointer}
+.check input{width:24px;height:24px;accent-color:var(--acc);flex:none}
+.tip{margin-top:10px;font-size:14px;color:var(--muted)}
+.timer{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:16px;padding:14px 16px;border-radius:14px;background:var(--field);border:1px solid var(--line)}
+.timer b{font-family:Literata,serif;font-size:34px;line-height:1;font-variant-numeric:tabular-nums;min-width:4ch}
+.timer .lbl{font-size:13px;color:var(--muted);flex-basis:100%}
+.wlist{display:grid;gap:10px;margin-top:16px}
+.witem{display:flex;gap:12px;align-items:flex-start;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
+.witem input{width:24px;height:24px;accent-color:var(--acc);flex:none;margin-top:2px}
+.witem b{display:block}.witem span{font-size:14px;color:var(--muted)}
+.witem.today{border-color:var(--acc);border-width:2px}
+section.notes h2{font-size:clamp(24px,3.5vw,30px);margin-bottom:6px}
+.chap{border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:18px}
+.chap h3{font-size:20px}
+.chap .sub{font-size:13px;color:var(--muted);margin:4px 0 12px}
+label.f{display:block;font-weight:600;font-size:15px;margin-top:14px}
+label.f small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+textarea{width:100%;margin-top:6px;min-height:120px;padding:12px;border-radius:10px;border:1.5px solid var(--line);background:var(--field);color:var(--ink);font:16px/1.5 Inter,sans-serif;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.btn{min-height:44px;padding:8px 16px;border-radius:10px;border:0;background:var(--ink);color:var(--bg);font:600 15px Inter,sans-serif;cursor:pointer}
+.btn.alt{background:var(--accSoft);color:var(--ink)}
+.btn.sm{min-height:40px;padding:6px 12px;font-size:14px}
+.count,.save{font-size:13px;color:var(--muted)}
+.save.ok{color:var(--ok)}
+.ref p{margin:0 0 10px;padding-left:2em;text-indent:-2em}
+.ref ul{padding-left:18px;color:var(--muted)}
+footer{font-size:13px;color:var(--muted);text-align:center;padding:24px 16px 40px}
+dialog{border:0;border-radius:18px;padding:24px;max-width:400px;width:calc(100% - 32px);background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(5,20,26,.55)}
+dialog h2{font-size:24px;margin-bottom:6px}
+dialog p{font-size:14px;color:var(--muted);margin:0 0 12px}
+dialog input{display:block;width:100%;min-height:44px;margin-top:6px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--field);color:var(--ink);font:16px Inter,sans-serif}
+dialog label{display:block;font-weight:600;font-size:14px;margin-top:12px}
+.err{color:#d6402a;font-size:14px;min-height:1.2em;margin-top:10px}
+.rbtn{grid-column:1/-1;justify-self:start;margin-top:8px}
+.reader{grid-column:1/-1;margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.rbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2;background:var(--field);padding:6px 0}
+.rbar .pg{font-size:14px;color:var(--muted);white-space:nowrap;text-align:center;flex:1}
+.rgrp{display:flex;gap:6px}
+.sheet{margin-top:8px;background:#fff;border-radius:6px;box-shadow:0 2px 14px rgba(0,0,0,.15);overflow:auto;max-height:85vh;touch-action:pan-x pan-y pinch-zoom}
+.sheet canvas{display:block}
+#cvw{position:relative;margin:0 auto}
+#ov{position:absolute;inset:0;cursor:pointer}
+#ov i{position:absolute;display:block;border-radius:3px;pointer-events:none}
+#ov i.s{background:rgba(64,170,205,.22)}
+#ov i.w{background:rgba(255,107,74,.42);outline:2px solid rgba(255,107,74,.9)}
+.phint{font-size:13px;color:var(--muted);margin:8px 0 0}
+.load{margin-top:8px;padding:16px;border:2px dashed var(--line);border-radius:12px;font-size:15px}
+.load input{display:block;margin-top:10px;font:15px Inter,sans-serif;max-width:100%}
+.load small{display:block;color:var(--muted);margin-top:8px}
+.listen{width:100%;margin-top:8px;background:var(--acc);color:#1a0d08}
+.seg{display:flex;gap:0;margin-top:8px;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;width:max-content}
+.seg button{min-height:40px;padding:0 18px;border:0;background:var(--field);color:var(--ink);font:600 14px Inter,sans-serif;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.tview{margin-top:10px;font:19px/1.75 Literata,Georgia,serif;color:var(--ink);padding:4px 2px 12px;-webkit-user-select:none;user-select:none}
+.tview .hint{font:13px Inter,sans-serif;color:var(--muted);margin:0 0 10px}
+.tview .s{border-radius:6px;transition:background .25s}
+.tview .s.on{background:light-dark(#dff0f5,#173f4d)}
+.tview .w{cursor:pointer;border-radius:4px;padding:0 1px}
+.tview .w.cur{background:var(--acc);color:#1a0d08}
+.tview .w:active{outline:2px solid var(--acc)}
+#player{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--band);color:var(--bandInk);padding:10px max(4vw,12px) calc(10px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(0,0,0,.25)}
+#player[hidden]{display:none}
+#player .pwrap{max-width:1000px;margin:0 auto;display:grid;gap:8px}
+#player .ptop{display:flex;justify-content:space-between;gap:10px;font-size:13px;opacity:.9}
+#player .ptop b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#player .ptop span{white-space:nowrap}
+#player .now{font-size:15px;line-height:1.4;max-height:2.8em;overflow:hidden}
+body.tv #player .now{white-space:nowrap;text-overflow:ellipsis;max-height:1.4em;font-size:14px;opacity:.85}
+#player .pctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#player button{min-height:44px;min-width:42px;border-radius:10px;border:0;background:rgba(255,255,255,.14);color:var(--bandInk);font:600 16px Inter,sans-serif;cursor:pointer;padding:0 12px}
+#player button.main{background:var(--acc);color:#1a0d08;min-width:58px}
+#player #pStop{margin-left:auto}
+#player select{min-height:44px;max-width:120px;border-radius:10px;border:0;padding:0 6px;font:15px Inter,sans-serif;background:rgba(255,255,255,.92);color:#14232a}
+#player .pbar{height:4px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden}
+#player .pbar i{display:block;height:100%;width:0;background:var(--acc)}
+body.playing{padding-bottom:170px}
+@media(max-width:600px){.item{grid-template-columns:1fr;padding:14px 10px}.day{padding:16px 10px;border-left-width:5px}.pages{text-align:left}}
+@media(prefers-reduced-motion:reduce){.meter i{transition:none}}
+
+.libwrap{display:grid;gap:18px}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:22px;text-align:center;background:var(--card)}
+.drop.over{border-color:var(--acc);background:var(--accSoft)}
+.drop label.btn{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;padding:10px 22px;background:var(--acc);color:#1a0d08}
+.drop input{position:absolute;width:1px;height:1px;opacity:0}
+.drop p{margin:10px 0 0;color:var(--muted);font-size:14px}
+#upMsg{min-height:1.3em;color:var(--ink);font-weight:600}
+#libList{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.doc{display:flex;gap:10px;align-items:center;background:var(--card);border-radius:14px;padding:10px}
+.doc .open{flex:1;text-align:left;background:none;border:0;color:var(--ink);cursor:pointer;padding:6px 4px;min-height:44px;font:inherit}
+.doc .open b{display:block;font-family:Literata,serif;font-size:18px;line-height:1.25;overflow-wrap:anywhere}
+.doc .open span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.mini{display:block;height:5px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}.mini i{display:block;height:100%;background:var(--acc)}
+.del{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.empty{color:var(--muted);padding:12px 0}
+.rdtop{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.rdtop h2{font-size:clamp(20px,4vw,28px);overflow-wrap:anywhere}
+#goPage{width:74px;min-height:36px;padding:4px 8px;border-radius:8px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:15px Inter,sans-serif;margin-left:6px}
+.rbar .pg{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px}
+.note{font-size:13px;color:var(--muted)}
+.tview .s.mk{background:light-dark(#fff1a6,#5b4b00);box-shadow:0 0 0 2px light-dark(#fff1a6,#5b4b00)}
+.tview .s.mk.on{background:light-dark(#ffe46b,#7a6400)}
+#ovm{position:absolute;inset:0;pointer-events:none}
+#ovm i{position:absolute;display:block;background:rgba(255,214,0,.38);mix-blend-mode:multiply;border-radius:2px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+#markBtn[aria-pressed=true]{background:#ffd60a;color:#1a1400}
+body.marking .tview .w{cursor:cell}
+.mkhint{font-size:13px;font-weight:600;color:light-dark(#7a5b00,#ffd60a);margin:6px 0 0}
+
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <h1>Lector en voz alta</h1>
+    <p>Sube un PDF y escúchalo con el texto resaltado mientras se lee. Todo se queda en tu celular.</p>
+  </div>
+</header>
+<main>
+  <section class="band" id="libSec"><div class="wrap libwrap">
+    <div class="drop" id="drop">
+      <label class="btn" for="upFile">Subir PDF</label><input id="upFile" type="file" accept="application/pdf,.pdf" multiple>
+      <p>O arrastra aquí tus archivos. Se guardan en este navegador; no se suben a internet.</p>
+      <p id="upMsg" aria-live="polite"></p>
+    </div>
+    <div><h2 style="font-size:24px;margin-bottom:10px">Mis PDFs</h2><ul id="libList"></ul></div>
+    <p class="note">Funciona con PDFs de texto. Los escaneados (fotos de páginas) se pueden ver, pero no leer en voz alta. La voz (~60 MB) se descarga una sola vez.</p>
+  </div></section>
+  <section class="band" id="rdSec" hidden style="padding-top:16px"><div class="wrap">
+    <div class="rdtop"><button class="btn sm alt" id="back" aria-label="Volver a mis PDFs">← Mis PDFs</button><h2 id="rdTitle"></h2></div>
+    <div class="day" style="border-left-width:5px"><div id="reader"></div></div>
+  </div></section>
+</main>
+<div id="player" hidden aria-label="Audiolibro">
+  <div class="pwrap">
+    <div class="ptop"><b id="pTitle">Audiolibro</b><span id="pPos"></span></div>
+    <div class="now" id="pNow">Preparando…</div>
+    <div class="pbar"><i id="pBar"></i></div>
+    <div class="pctl">
+      <button id="pPrev" aria-label="Frase anterior">⏮</button>
+      <button id="pPlay" class="main" aria-label="Reproducir o pausar">❚❚</button>
+      <button id="pNext" aria-label="Frase siguiente">⏭</button>
+      <button id="pMark" aria-label="Resaltar la frase que se está leyendo">✎</button>
+      <label class="sr" for="pRate" hidden>Velocidad</label>
+      <select id="pRate" aria-label="Velocidad">
+        <option value="0.75">0.75×</option><option value="0.9">0.9×</option><option value="1">1×</option><option value="1.1">1.1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option>
+      </select>
+      <select id="pVoice" aria-label="Voz">
+        <option value="es_MX-ald-medium">Hombre (fluida)</option>
+        <option value="es_MX-claude-high">Mujer (detallada)</option>
+      </select>
+      <button id="pStop" aria-label="Cerrar audiolibro">✕</button>
+    </div>
+  </div>
+</div>
+<audio id="au" preload="auto"></audio>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LS="lectorVoz";
+let state={pos:{},audio:{},audioRate:"1",audioVoice:"es_MX-ald-medium"};
+try{const l=localStorage.getItem(LS);if(l)state=Object.assign(state,JSON.parse(l))}catch(e){}
+function persist(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}}
+let META={};try{META=JSON.parse(localStorage.getItem("lectorMeta")||"{}")}catch(e){}
+function saveMeta(){try{localStorage.setItem("lectorMeta",JSON.stringify(META))}catch(e){}}
+
+/* ---------- PDFs guardados en este navegador ---------- */
+const PDFJS="https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/";
+let pdfLib=null,docs={},cur=null,openItem=null,rPage=1,zoom=1,renderTask=null;
+function idb(){return new Promise((ok,no)=>{const r=indexedDB.open("lectorVozPDF",1);r.onupgradeneeded=()=>r.result.createObjectStore("files");r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+async function idbGet(k){const db=await idb();return new Promise((ok,no)=>{const q=db.transaction("files").objectStore("files").get(k);q.onsuccess=()=>ok(q.result||null);q.onerror=()=>no(q.error)})}
+async function idbPut(k,v){const db=await idb();return new Promise((ok,no)=>{const t=db.transaction("files","readwrite");t.objectStore("files").put(v,k);t.oncomplete=()=>ok();t.onerror=()=>no(t.error)})}
+async function idbDel(k){const db=await idb();return new Promise((ok,no)=>{const t=db.transaction("files","readwrite");t.objectStore("files").delete(k);t.oncomplete=()=>ok();t.onerror=()=>no(t.error)})}
+async function lib(){
+  if(!pdfLib){pdfLib=await import(PDFJS+"pdf.min.mjs");pdfLib.GlobalWorkerOptions.workerSrc=PDFJS+"pdf.worker.min.mjs"}
+  return pdfLib;
+}
+async function getDoc(id){
+  if(docs[id])return docs[id];
+  const buf=await idbGet(id);if(!buf)return null;
+  const L=await lib();docs[id]=await L.getDocument({data:new Uint8Array(buf)}).promise;return docs[id];
+}
+function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
+const descr=id=>({bk:id,a:1,b:(META[id]||{}).pages||1,end:null});
+function curItem(){return descr(cur)}
+
+function renderLib(){
+  const ids=Object.keys(META).sort((a,b)=>(META[b].last||0)-(META[a].last||0));
+  $("libList").innerHTML=ids.length?ids.map(id=>{const m=META[id],p=(state.pos[id]||{}).page||1;const pct=Math.round((p-1)/Math.max(1,m.pages-1)*100);
+    return `<li class="doc"><button class="open" data-open="${id}"><b>${esc(m.name)}</b><span>${m.pages} páginas · vas en la p. ${p}${markCount(id)?" · "+markCount(id)+" resaltadas":""}${m.noText?" · sin texto":""}</span><i class="mini"><i style="width:${pct}%"></i></i></button>
+      <span class="del" id="del-${id}"><button class="btn sm alt" data-del="${id}" aria-label="Borrar ${esc(m.name)}">Borrar</button></span></li>`}).join("")
+    :`<li class="empty">Todavía no tienes PDFs. Sube uno para empezar.</li>`;
+}
+async function addFiles(files){
+  const msg=$("upMsg");
+  for(const f of files){
+    if(!/pdf$/i.test(f.type)&&!/\.pdf$/i.test(f.name)){msg.textContent=f.name+" no es un PDF.";continue}
+    msg.textContent="Abriendo "+f.name+"…";
+    try{
+      const buf=await f.arrayBuffer();
+      const L=await lib();const doc=await L.getDocument({data:new Uint8Array(buf.slice(0))}).promise;
+      let chars=0;for(let n=1;n<=Math.min(3,doc.numPages);n++){const tc=await (await doc.getPage(n)).getTextContent();chars+=tc.items.reduce((a,i)=>a+i.str.trim().length,0)}
+      const id="d"+hashStr(f.name+"|"+f.size);
+      await idbPut(id,buf);
+      META[id]={name:f.name.replace(/\.pdf$/i,""),pages:doc.numPages,size:f.size,added:Date.now(),last:Date.now(),noText:chars<40};
+      docs[id]=doc;saveMeta();renderLib();
+      msg.textContent=chars<40?f.name+" se guardó, pero parece escaneado (imagen): no tiene texto para leer en voz alta.":"Listo: "+f.name;
+    }catch(e){msg.textContent="No se pudo abrir "+f.name+". ¿Está dañado o tiene contraseña?"}
+  }
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+}
+async function openDoc(id){
+  $("libSec").hidden=true;$("rdSec").hidden=false;
+  $("rdTitle").textContent=META[id].name;
+  $("reader").innerHTML=`<p class="count">Abriendo…</p>`;
+  let doc=null;try{doc=await getDoc(id)}catch(e){}
+  if(!doc){$("reader").innerHTML=`<p class="err">No se pudo abrir este PDF. Revisa tu conexión a internet (la primera vez se descarga el visor) o vuelve a subirlo.</p>`;return}
+  cur=id;openItem=0;META[id].last=Date.now();saveMeta();
+  rPage=Math.min(Math.max(1,(state.pos[id]||{}).page||1),doc.numPages);
+  try{history.replaceState(null,"","#"+id)}catch(e){}
+  openReader();scrollTo(0,0);
+}
+function closeDoc(){
+  $("rdSec").hidden=true;$("libSec").hidden=false;openItem=null;renderLib();
+  try{history.replaceState(null,"",location.pathname)}catch(e){}
+}
+function openReader(){
+  const el=$("reader");const it=curItem();
+  el.innerHTML=`<div class="rbar"><div class="rgrp"><button class="btn sm" data-nav="-1" aria-label="Página anterior">←</button></div>
+    <span class="pg"><span id="rInfo"></span> <input id="goPage" type="number" inputmode="numeric" min="1" max="${it.b}" aria-label="Ir a la página" placeholder="ir a…"></span>
+    <div class="rgrp"><button class="btn sm alt" data-zoom="-1" aria-label="Alejar">−</button><button class="btn sm alt" data-zoom="1" aria-label="Acercar">+</button><button class="btn sm" data-nav="1" aria-label="Página siguiente">→</button></div></div>
+    <button class="btn listen" id="listenBtn">▶ Escuchar desde esta página</button>
+    <div class="tools"><button class="btn sm alt" id="markBtn" aria-pressed="${markMode}">✎ Resaltar</button><button class="btn sm alt" id="dlPdf">⬇ PDF resaltado</button><button class="btn sm alt" id="dlTxt">⬇ Mis resaltados (.txt)</button><span class="count" id="markInfo"></span></div>
+    <p class="mkhint" id="mkHint" ${markMode?"":"hidden"}>Modo resaltar: toca una frase para marcarla o desmarcarla.</p>
+    <div class="seg" role="group" aria-label="Vista"><button data-view="texto" aria-pressed="${view==="texto"}">Texto</button><button data-view="pdf" aria-pressed="${view==="pdf"}">PDF</button></div>
+    <div class="tview" id="tview" ${view==="texto"?"":"hidden"}></div>
+    <p class="phint" id="phint" ${view==="pdf"?"":"hidden"}>Toca una palabra de la página para escuchar desde ahí.</p>
+    <div class="sheet" id="sheet" ${view==="pdf"?"":"hidden"}><div id="cvw"><canvas id="cv"></canvas><div id="ovm"></div><div id="ov"></div></div></div>`;
+  drawPage();
+}
+async function drawPage(){
+  const it=curItem(),doc=docs[it.bk],sheet=$("sheet"),cv=$("cv");if(!doc||!cv)return;
+  $("rInfo").textContent=`p. ${rPage} de ${it.b}`;
+  state.pos[cur]=Object.assign(state.pos[cur]||{},{page:rPage});persist();
+  document.body.classList.toggle("tv",view==="texto");
+  if(view==="texto"){$("sheet").hidden=true;$("phint").hidden=true;$("tview").hidden=false;return renderTextPage()}
+  $("sheet").hidden=false;$("phint").hidden=false;$("tview").hidden=true;
+  const page=await doc.getPage(rPage);
+  const base=page.getViewport({scale:1});
+  const W=Math.max(200,sheet.clientWidth);
+  const scale=W/base.width*zoom,dpr=Math.min(window.devicePixelRatio||1,3);
+  const vp=page.getViewport({scale:scale*dpr});
+  if(renderTask){try{renderTask.cancel()}catch(e){}}
+  cv.width=vp.width;cv.height=vp.height;cv.style.width=(vp.width/dpr)+"px";cv.style.height=(vp.height/dpr)+"px";
+  renderTask=page.render({canvasContext:cv.getContext("2d"),viewport:vp,canvas:cv});
+  try{await renderTask.promise}catch(e){}
+  sheet.scrollTop=0;
+  $("cvw").style.width=cv.style.width;$("cvw").style.height=cv.style.height;
+  await buildPdfLayer(it,rPage,page,page.getViewport({scale}));
+}
+function nav(n){const it=curItem();const p=rPage+n;if(p<it.a||p>it.b)return;rPage=p;drawPage();$("reader").scrollIntoView({block:"start",behavior:"smooth"})}
+
+/* ---------- mis resaltados ---------- */
+let markMode=false;
+state.marks=state.marks||{};
+const marksOf=(id,n)=>((state.marks[id]||{})[n]||[]);
+function markCount(id){return Object.values(state.marks[id]||{}).reduce((a,v)=>a+v.length,0)}
+function toggleMark(n,k){
+  const m=state.marks[cur]=state.marks[cur]||{};const a=m[n]=m[n]||[];
+  const i=a.indexOf(k);if(i>=0)a.splice(i,1);else a.push(k);
+  if(!a.length)delete m[n];persist();refreshMarks();
+}
+function lineRects(qs,rects){
+  const lines=new Map();
+  const out=[];
+  for(const q of qs){const r=rects[q];if(!r)continue;
+    const L=out.find(o=>Math.min(o.t+o.h,r.t+r.h)-Math.max(o.t,r.t)>Math.min(o.h,r.h)*.5);
+    if(!L)out.push({...r});else{const l=Math.min(L.l,r.l),rt=Math.max(L.l+L.w,r.l+r.w),tp=Math.min(L.t,r.t),bt=Math.max(L.t+L.h,r.t+r.h);L.l=l;L.w=rt-l;L.t=tp;L.h=bt-tp}}
+  return out;
+}
+function refreshMarks(){
+  const info=$("markInfo");if(info){const c=markCount(cur);info.textContent=c?c+" frase"+(c>1?"s":"")+" resaltada"+(c>1?"s":""):""}
+  const mk=marksOf(cur,rPage);
+  const tv=$("tview");
+  if(tv&&shownPage&&shownPage.page===rPage)tv.querySelectorAll(".s").forEach(s=>s.classList.toggle("mk",mk.includes(+s.dataset.k)));
+  const ovm=$("ovm");
+  if(ovm&&pdfView&&pdfView.page===rPage&&pdfView.day===cur){
+    ovm.innerHTML=lineRects(mk.flatMap(k=>(pdfView.map[k]||[]).flat()),pdfView.rects).map(r=>`<i style="left:${r.l-2}px;top:${r.t}px;width:${r.w+4}px;height:${r.h}px"></i>`).join("");
+  }
+}
+function download(blob,name){
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
+}
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>no(new Error("script"));document.head.appendChild(s)})}
+async function exportPdf(){
+  const id=cur,info=$("markInfo"),m=state.marks[id]||{};
+  const pages=Object.keys(m).map(Number).filter(n=>m[n].length).sort((a,b)=>a-b);
+  if(!pages.length){info.textContent="Todavía no resaltas nada. Activa ✎ Resaltar y toca frases.";return}
+  info.textContent="Preparando el PDF…";
+  try{
+    if(!window.PDFLib)await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js");
+    const {PDFDocument,rgb,BlendMode}=PDFLib;
+    const pdf=await PDFDocument.load(await idbGet(id),{ignoreEncryption:true});
+    for(const n of pages){
+      const {ch}=await getChunks(id,n,null);const boxes=await pageWordBoxes(id,n);const {map}=alignWords(ch,boxes);
+      const qs=m[n].flatMap(k=>(map[k]||[]).flat());
+      const rects=boxes.map(b=>({l:b.x0,t:-(b.y+b.h*.82),w:b.x1-b.x0,h:b.h*1.07}));
+      const page=pdf.getPage(n-1);
+      for(const r of lineRects(qs,rects))page.drawRectangle({x:r.l-1,y:-(r.t)-r.h,width:r.w+2,height:r.h,color:rgb(1,.85,.05),opacity:.4,blendMode:BlendMode.Multiply});
+      info.textContent="Preparando el PDF… p. "+n;
+    }
+    const bytes=await pdf.save();
+    download(new Blob([bytes],{type:"application/pdf"}),META[id].name+" (resaltado).pdf");
+    info.textContent="Listo: se descargó «"+META[id].name+" (resaltado).pdf».";
+  }catch(e){info.textContent="No se pudo crear el PDF. Revisa tu conexión a internet e intenta de nuevo."}
+}
+async function exportTxt(){
+  const id=cur,m=state.marks[id]||{},info=$("markInfo");
+  const pages=Object.keys(m).map(Number).filter(n=>m[n].length).sort((a,b)=>a-b);
+  if(!pages.length){info.textContent="Todavía no resaltas nada.";return}
+  let out=META[id].name+"\nMis resaltados\n\n";
+  for(const n of pages){const {ch}=await getChunks(id,n,null);for(const k of m[n].slice().sort((a,b)=>a-b))if(ch[k])out+="• "+ch[k].t+" (p. "+n+")\n"}
+  download(new Blob([out],{type:"text/plain;charset=utf-8"}),META[id].name+" - resaltados.txt");
+}
+
+/* ---------- quitar encabezados, pies y números de página ---------- */
+const tcCache=new Map();
+async function tcOf(bk,n){
+  const k=bk+"|"+n;if(tcCache.has(k))return tcCache.get(k);
+  const pg=await docs[bk].getPage(n);const tc=await pg.getTextContent();const v=pg.view;
+  const r={items:tc.items,y0:v[1],H:(v[3]-v[1])||792};tcCache.set(k,r);return r;
+}
+const lsig=s=>s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-zñ]/g,"");
+const edgeCache=new Map();
+async function edges(bk,n){
+  const k=bk+"|"+n;if(edgeCache.has(k))return edgeCache.get(k);
+  const t=await tcOf(bk,n);
+  const its=t.items.filter(i=>i.str.trim());
+  const hs=its.map(i=>Math.abs(i.transform[3])||i.height).sort((a,b)=>a-b);const med=hs[Math.floor(hs.length/2)]||10;
+  const cy=i=>i.transform[5]+(Math.abs(i.transform[3])||i.height)*.35;
+  const sorted=its.slice().sort((a,b)=>cy(b)-cy(a));
+  const lines=[];let curL=null,last=null;
+  for(const i of sorted){const c=cy(i);if(!curL||last-c>med*.55){curL=[];lines.push(curL)}curL.push(i);last=c}
+  const mk=(L,zone)=>{if(!L)return null;const y=(cy(L[0])-t.y0)/t.H;const ok=zone==="top"?y>.80:y<.14;if(!ok)return null;
+    const xs=L.slice().sort((a,b)=>a.transform[4]-b.transform[4]);return {xs,sig:lsig(xs.map(i=>i.str).join("")),txt:xs.map(i=>i.str).join(" ")}};
+  const nL=lines.length;
+  const cands=[mk(lines[0],"top"),nL>1?mk(lines[1],"top"):null,nL>2?mk(lines[nL-1],"bot"):null,nL>3?mk(lines[nL-2],"bot"):null].filter(Boolean);
+  const r={cands,med};
+  edgeCache.set(k,r);return r;
+}
+async function keptItems(bk,n){
+  const t=await tcOf(bk,n),N=docs[bk].numPages,E=await edges(bk,n);
+  const near=new Set();
+  for(const m of [n-2,n-1,n+1,n+2]){if(m<1||m>N)continue;const u=await edges(bk,m);for(const z of u.cands)if(z.sig.length>=4)near.add(z.sig)}
+  const dropSet=new Set();
+  for(const z of E.cands){
+    const numOnly=!z.sig.length&&/^[\s\divxlcIVXLC.\-–—|·/:]+$/.test(z.txt)||/^\s*p[áa]g(ina)?\.?\s*\d+(\s*(de|of)\s*\d+)?\s*$/i.test(z.txt);
+    if(numOnly||(z.sig.length>=4&&near.has(z.sig))){z.xs.forEach(i=>dropSet.add(i));continue}
+    // parte repetida al inicio o al final del renglón (páginas escaneadas un poco chuecas)
+    for(const dir of [1,-1]){
+      const arr=dir===1?z.xs:z.xs.slice().reverse();let acc="",take=[];
+      for(const i of arr){const w=lsig(i.str);take.push(i);if(!w)continue;acc=dir===1?acc+w:w+acc;if(acc.length>40)break;
+        if(acc.length>=6&&near.has(acc)){take.forEach(x=>dropSet.add(x));
+          // y el número de página pegado a ese encabezado
+          break}}
+    }
+  }
+  const med=E.med;
+  return t.items.map(i=>{
+    const h=Math.abs(i.transform[3])||i.height;
+    const drop=dropSet.has(i)||(i.str.trim()&&/^\s*\d{1,3}\s*$/.test(i.str)&&h<med*.85);
+    return {i,drop:!!drop};
+  });
+}
+
+/* vista de texto estilo Speechify: se marca la frase y la palabra; tocar una palabra lee desde ahí */
+let view=(()=>{try{return localStorage.getItem("vistaLectorVoz")||"texto"}catch(e){return "texto"}})();
+const textCache=new Map();
+async function getChunks(bk,n,end){
+  const k=bk+"|"+n;if(textCache.has(k))return textCache.get(k);
+  const {text,stop}=await pageText(bk,n,end);const v={ch:chunk(text),stop};textCache.set(k,v);return v;
+}
+const splitWords=t=>t.split(/\s+/).filter(Boolean);
+function weights(words){return words.map(w=>{const L=w.replace(/[^\p{L}]/gu,"").length,D=w.replace(/\D/g,"").length;let x=L+D*3.5+1.4;if(/[,;:]$/.test(w))x+=3.5;if(/[.?!]$/.test(w))x+=1;return x})}
+let shownPage=null,hlS=null,hlW=null;
+async function renderTextPage(){
+  const it=curItem(),tv=$("tview");if(!tv)return;
+  const n=rPage;const {ch}=await getChunks(it.bk,n,it.end);
+  if(n!==rPage||!$("tview"))return;
+  shownPage={bk:it.bk,page:n,day:cur,item:openItem};hlS=hlW=null;
+  tv.innerHTML=`<p class="hint">${markMode?"Modo resaltar activo.":"Toca cualquier palabra para escuchar desde ahí."}</p>`+(ch.length?ch.map((c,k)=>`<span class="s" data-k="${k}">${splitWords(c.t).map((w,j)=>`<span class="w" data-k="${k}" data-j="${j}">${esc(w)}</span>`).join(" ")}</span>`).join(" "):`<p class="hint">Esta página no tiene texto para leer.</p>`);
+  refreshMarks();highlight(true);
+}
+let userScrollAt=0;
+["touchmove","wheel"].forEach(ev=>window.addEventListener(ev,()=>{userScrollAt=Date.now()},{passive:true}));
+/* resaltado sobre la imagen del PDF */
+let pdfView=null,pdfMark="";
+const norm=w=>w.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9ñ]/g,"");
+async function pageWordBoxes(bk,n){
+  const k="wb|"+bk+"|"+n;if(textCache.has(k))return textCache.get(k);
+  const out=[];
+  for(const {i:it,drop} of await keptItems(bk,n)){
+    const str=it.str;if(drop||!str.trim())continue;
+    const x=it.transform[4],y=it.transform[5],L=str.length,h=Math.abs(it.transform[3])||it.height;
+    const re=/\S+/g;let m;
+    while((m=re.exec(str))){out.push({t:m[0],n:norm(m[0]),x0:x+it.width*m.index/L,x1:x+it.width*(m.index+m[0].length)/L,y,h})}
+  }
+  textCache.set(k,out);return out;
+}
+function alignWords(ch,boxes){
+  const map=[],rev=new Map();let p=0;
+  ch.forEach((c,k)=>{map[k]=[];splitWords(c.t).forEach((w,j)=>{
+    const want=norm(w);const got=[];
+    if(want){
+      for(let look=0;look<8&&p+look<boxes.length;look++){
+        const q=p+look,b=boxes[q];
+        if(b.n===want){got.push(q);p=q+1;break}
+        if(want.startsWith(b.n)&&b.n.length>1&&q+1<boxes.length&&want===b.n+boxes[q+1].n){got.push(q,q+1);p=q+2;break}
+      }
+    }
+    map[k][j]=got;got.forEach(q=>rev.set(q,{k,j}));
+  })});
+  return {map,rev};
+}
+async function buildPdfLayer(it,n,page,vp){
+  const {ch}=await getChunks(it.bk,n,it.end);
+  const boxes=await pageWordBoxes(it.bk,n);
+  const {map,rev}=alignWords(ch,boxes);
+  const rects=boxes.map(b=>{const [ax,ay]=vp.convertToViewportPoint(b.x0,b.y+b.h*.82),[bx,by]=vp.convertToViewportPoint(b.x1,b.y-b.h*.25);return {l:Math.min(ax,bx),t:Math.min(ay,by),w:Math.abs(bx-ax),h:Math.abs(by-ay)}});
+  pdfView={day:cur,item:openItem,page:n,map,rev,rects};pdfMark="";$("ov").innerHTML="";
+  refreshMarks();highlight(true);
+}
+function pdfHighlight(T,force){
+  const ov=$("ov");
+  if(!ov||!pdfView||$("sheet").hidden||pdfView.day!==P.day||pdfView.item!==P.item||pdfView.page!==T.page){if(ov&&pdfMark){ov.innerHTML="";pdfMark=""}return}
+  const key=T.k+"|"+T.j;if(key===pdfMark&&!force)return;pdfMark=key;
+  const sent=(pdfView.map[T.k]||[]).flat(),word=(pdfView.map[T.k]||[])[T.j]||[];
+  const lines=new Map();
+  for(const q of sent){const r=pdfView.rects[q];const key2=Math.round(r.t/4);const L=lines.get(key2);if(!L)lines.set(key2,{...r});else{const l=Math.min(L.l,r.l),rt=Math.max(L.l+L.w,r.l+r.w);L.l=l;L.w=rt-l;L.t=Math.min(L.t,r.t);L.h=Math.max(L.h,r.h)}}
+  let html="";for(const r of lines.values())html+=`<i class="s" style="left:${r.l-2}px;top:${r.t}px;width:${r.w+4}px;height:${r.h}px"></i>`;
+  for(const q of word){const r=pdfView.rects[q];html+=`<i class="w" id="ovw" style="left:${r.l-2}px;top:${r.t}px;width:${r.w+4}px;height:${r.h}px"></i>`}
+  ov.innerHTML=html;
+  const w=$("ovw");
+  if(w&&Date.now()-userScrollAt>4000){const rr=w.getBoundingClientRect(),sh=$("sheet").getBoundingClientRect(),bottom=Math.min(sh.bottom,innerHeight-($("player").hidden?20:$("player").offsetHeight+24));if(rr.top<Math.max(sh.top,70)||rr.bottom>bottom)w.scrollIntoView({block:"center",behavior:force?"auto":"smooth"})}
+}
+let switching=false;
+function target(e){
+  let j=e.off;
+  if(e.dur&&actx&&actx.currentTime>=e.at){const prog=Math.max(0,Math.min(.999,(actx.currentTime-e.at)/e.dur));const tot=e.cum[e.cum.length-1];let x=prog*tot,q=0;while(q<e.cum.length-1&&e.cum[q]<=x)q++;j=e.off+q}
+  return j>=e.split?{page:e.page+1,k:0,j:j-e.split}:{page:e.page,k:e.i,j};
+}
+function highlight(force){
+  const e=P.list[P.cur],tv=$("tview");
+  if(!P.on||!e)return;
+  const T=target(e);
+  if(openItem===P.item&&cur===P.day&&$("reader")&&$("cv")&&rPage!==T.page&&!switching&&T.page<=pItem().b){switching=true;rPage=T.page;Promise.resolve(drawPage()).finally(()=>{switching=false})}
+  if(view==="pdf"){pdfHighlight(T,force);return}
+  if(!tv||tv.hidden||!shownPage||shownPage.day!==P.day||shownPage.item!==P.item||shownPage.page!==T.page){if(hlS){hlS.classList.remove("on");hlS=null}if(hlW){hlW.classList.remove("cur");hlW=null}return}
+  const s=tv.querySelector(`.s[data-k="${T.k}"]`);
+  if(s!==hlS){if(hlS)hlS.classList.remove("on");hlS=s;if(s)s.classList.add("on")}
+  const j=T.j;
+  const w=s?s.querySelector(`.w[data-j="${j}"]`):null;
+  if(w!==hlW){if(hlW)hlW.classList.remove("cur");hlW=w;if(w){w.classList.add("cur");
+    if(Date.now()-userScrollAt>4000){const r=w.getBoundingClientRect(),bottom=innerHeight-($("player").hidden?20:$("player").offsetHeight+24);if(r.top<70||r.bottom>bottom)w.scrollIntoView({block:"center",behavior:force?"auto":"smooth"})}}}
+}
+(function hlLoop(){try{if(P.on&&P.playing)highlight(false)}catch(e){}requestAnimationFrame(hlLoop)})();
+
+/* ---------- audiolibro: voz Piper que corre en tu celular, gratis ---------- */
+const TTS={
+  ort:"https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.18.0/",
+  wasm:"https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize",
+  hf:"https://huggingface.co/diffusionstudio/piper-voices/resolve/main/",
+  voices:{"es_MX-claude-high":"es/es_MX/claude/high/es_MX-claude-high.onnx","es_MX-ald-medium":"es/es_MX/ald/medium/es_MX-ald-medium.onnx"}
+};
+const au=$("au");
+const engine={voice:null,ready:false,cfg:null,rtf:0};
+
+async function cachedFetch(url,onProg){
+  let c=null;try{c=await caches.open("voces-piper-v1");const hit=await c.match(url);if(hit)return await hit.arrayBuffer()}catch(e){}
+  const res=await fetch(url);if(!res.ok)throw new Error("HTTP "+res.status);
+  const total=+res.headers.get("Content-Length")||0;const rd=res.body.getReader();const parts=[];let got=0;
+  for(;;){const {done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;onProg&&onProg(got,total)}
+  const buf=await new Blob(parts).arrayBuffer();
+  try{c&&await c.put(url,new Response(buf.slice(0)))}catch(e){}
+  return buf;
+}
+/* motor de voz en segundo plano (Web Worker): la página nunca se congela */
+const WORKER_SRC=`
+let session=null,cfg=null,ph=null,buf=null,q=Promise.resolve();
+async function init(m){
+  if(!self.ort){importScripts(m.ort+"ort.min.js")}
+  ort.env.wasm.wasmPaths=m.ort;ort.env.wasm.numThreads=1;
+  if(!self.createPiperPhonemize){
+    const src=await (await fetch(m.piper)).text();
+    importScripts(URL.createObjectURL(new Blob([src.replace("export var createPiperPhonemize","self.createPiperPhonemize")],{type:"text/javascript"})));
+  }
+  if(!ph){ph=await self.createPiperPhonemize({print:d=>{if(buf)buf.push(d)},printErr:()=>{},
+    locateFile:u=>u.endsWith(".wasm")?m.wasm+".wasm":u.endsWith(".data")?m.wasm+".data":u})}
+  cfg=m.cfg;session=null;session=await ort.InferenceSession.create(new Uint8Array(m.model));
+  return {};
+}
+function phon(m){
+  buf=[];
+  try{ph.callMain(["-l",m.voice,"--input",JSON.stringify(m.texts.map(t=>({text:t}))),"--espeak_data","/espeak-ng-data"])}catch(e){}
+  const ids=buf.map(d=>{try{return JSON.parse(d).phoneme_ids}catch(e){return []}});buf=null;
+  while(ids.length<m.texts.length)ids.push([]);
+  return {ids};
+}
+async function synth(m){
+  const ids=m.ids;if(!ids||ids.length<3)return {pcm:null};
+  const c=cfg.inference;
+  const feeds={input:new ort.Tensor("int64",BigInt64Array.from(ids.map(BigInt)),[1,ids.length]),
+    input_lengths:new ort.Tensor("int64",BigInt64Array.from([BigInt(ids.length)]),[1]),
+    scales:new ort.Tensor("float32",Float32Array.from([c.noise_scale,c.length_scale/m.speed,c.noise_w]),[3])};
+  if(cfg.speaker_id_map&&Object.keys(cfg.speaker_id_map).length)feeds.sid=new ort.Tensor("int64",BigInt64Array.from([0n]),[1]);
+  const t0=performance.now();
+  const r=await session.run(feeds);
+  const pcm=r.output.data,sr=cfg.audio.sample_rate;
+  const rtf=(performance.now()-t0)/1000/(pcm.length/sr);
+  let a=0,b=pcm.length-1;const th=0.012;
+  while(a<b&&Math.abs(pcm[a])<th)a++;
+  while(b>a&&Math.abs(pcm[b])<th)b--;
+  a=Math.max(0,a-Math.round(sr*.02));b=Math.min(pcm.length-1,b+Math.round(sr*.04));
+  const out=new Float32Array(pcm.subarray(a,b+1));
+  const f=Math.min(Math.round(sr*.008),out.length>>2);for(let k=0;k<f;k++){const g=k/f;out[k]*=g;out[out.length-1-k]*=g}
+  return {pcm:out,rtf};
+}
+self.onmessage=ev=>{const m=ev.data;
+  q=q.then(async()=>{
+    try{
+      const r=m.type==="init"?await init(m):m.type==="phon"?phon(m):await synth(m);
+      postMessage(Object.assign({id:m.id,ok:true},r),r.pcm?[r.pcm.buffer]:[]);
+    }catch(e){postMessage({id:m.id,ok:false,err:String(e&&e.message||e)})}
+  });
+};`;
+let worker=null,rpcId=0;const pending=new Map();
+function getWorker(){
+  if(worker)return worker;
+  worker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:"text/javascript"})));
+  worker.onmessage=ev=>{const m=ev.data,p=pending.get(m.id);if(!p)return;pending.delete(m.id);m.ok?p.ok(m):p.no(new Error(m.err))};
+  worker.onerror=e=>{for(const p of pending.values())p.no(new Error("worker"));pending.clear()};
+  return worker;
+}
+function rpc(msg,transfer){return new Promise((ok,no)=>{const id=++rpcId;pending.set(id,{ok,no});getWorker().postMessage(Object.assign({id},msg),transfer||[])})}
+async function loadEngine(voice){
+  if(engine.voice===voice&&engine.ready)return;
+  engine.ready=false;
+  setNow("Descargando la voz por primera vez (unos 60 MB). Después ya queda guardada…");
+  const path=TTS.voices[voice];
+  const cfg=JSON.parse(new TextDecoder().decode(await cachedFetch(TTS.hf+path+".json")));
+  const model=await cachedFetch(TTS.hf+path,(g,t)=>{setNow("Descargando la voz: "+(t?Math.round(g/t*100)+"%":Math.round(g/1048576)+" MB")+" (solo la primera vez)");$("pBar").style.width=(t?g/t*100:0)+"%"});
+  setNow("Preparando la voz…");
+  await rpc({type:"init",ort:TTS.ort,wasm:TTS.wasm,piper:new URL("piper.js",location.href).href,cfg,model},[model]);
+  engine.cfg=cfg;engine.voice=voice;engine.ready=true;
+}
+async function phonemize(texts){
+  if(!texts.length)return [];
+  const r=await rpc({type:"phon",voice:engine.cfg.espeak.voice,texts});
+  return r.ids;
+}
+async function synth(ids,speed){
+  if(!ids||ids.length<3)return null;
+  const r=await rpc({type:"synth",ids,speed});
+  if(r.rtf)engine.rtf=r.rtf;
+  return r.pcm;
+}
+
+/* texto limpio de una página del PDF */
+const ROM={I:1,V:5,X:10,L:50,C:100};
+function roman(r){let n=0;for(let i=0;i<r.length;i++){const v=ROM[r[i]],w=ROM[r[i+1]]||0;n+=v<w?-v:v}return n}
+function speakable(s){
+  return s.replace(/\bEE\.\s?UU\.?/g,"Estados Unidos").replace(/\bp\.\s?ej\./gi,"por ejemplo").replace(/\betc\./g,"etcétera")
+    .replace(/\bvs\./g,"contra").replace(/\bpp?\.\s?(\d)/g,"página $1").replace(/\bnúm\./g,"número").replace(/\bDr\./g,"doctor").replace(/\bSr\./g,"señor")
+    .replace(/(\d)\s?%/g,"$1 por ciento").replace(/&/g," y ")
+    .replace(/\b(siglos?|Siglos?)\s+([IVXLC]{1,6})\b/g,(m,a,r)=>a+" "+roman(r))
+    .replace(/[«»“”"„]/g,"").replace(/[‘’']/g,"")
+    .replace(/\s*[–—]\s*/g,", ").replace(/\s*\(\s*/g,", ").replace(/\s*\)\s*/g,", ")
+    .replace(/\s*[\[\]]\s*/g," ").replace(/…/g,".").replace(/\s*;\s*/g,", ")
+    .replace(/,\s*([,.:?!])/g,"$1").replace(/^\s*,\s*/,"").replace(/\s{2,}/g," ").trim();
+}
+async function pageText(bk,n,end){
+  let s="";
+  for(const {i:it,drop} of await keptItems(bk,n)){s+=(drop?"":it.str)+(it.hasEOL?"\n":"")}
+  s=s.replace(/\[\d+\]/g,"").replace(/(\w)-\n(\w)/g,"$1$2").replace(/\n/g," ")
+     .replace(/https?:\S+|www\.\S+/g,"").replace(/\s+([.,;:])/g,"$1").replace(/\s{2,}/g," ").trim();
+  if(/^\d{1,3}$/.test(s))s="";
+  return {text:s,stop:false};
+}
+/* una frase por pedazo (las muy largas se parten en comas) */
+function chunk(text){
+  const sents=text.split(/(?<=[.!?…»”)])\s+(?=[«¿¡"“(A-ZÁÉÍÓÚÑ0-9])/);
+  const out=[];
+  for(let s of sents){
+    s=s.trim();if(!s)continue;
+    while(s.length>260){let cut=s.lastIndexOf(", ",240);if(cut<80)cut=s.lastIndexOf(" ",240);if(cut<1)break;out.push({t:s.slice(0,cut+1).trim(),end:false});s=s.slice(cut+1).trim()}
+    if(s)out.push({t:s,end:true});
+  }
+  for(let i=0;i<out.length-1;i++){if(out[i].t.length<25&&out[i].end){out[i+1].t=out[i].t+" "+out[i+1].t;out[i].t=""}}
+  return out.filter(x=>x.t);
+}
+
+/* reproducción sin cortes: las frases se generan por adelantado y se encadenan */
+let actx=null,silentURL=null;
+const P={on:false,playing:false,day:null,item:null,list:[],nextPage:0,ended:false,gp:0,gen:0,nextAt:0,srcs:[],cur:-1,speed:1};
+function setNow(t){$("pNow").textContent=t}
+function pKey(){return P.day+"-"+P.item}
+function pItem(){return descr(P.day)}
+function silence(){
+  if(silentURL)return silentURL;
+  const sr=8000,n=sr;const v=new DataView(new ArrayBuffer(44+n*2));const w=(o,s)=>{for(let i=0;i<4;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,"RIFF");v.setUint32(4,36+n*2,true);w(8,"WAVE");w(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,"data");v.setUint32(40,n*2,true);
+  return silentURL=URL.createObjectURL(new Blob([v.buffer],{type:"audio/wav"}));
+}
+function paintPlayer(){
+  const it=pItem(),e=P.list[P.cur];
+  const nm=(META[P.day]||{}).name||"Documento";
+  $("pTitle").textContent=nm;
+  $("pPos").textContent=e?`p. ${e.page} · ${e.i+1}/${e.n}`:"";
+  $("pPlay").textContent=P.playing?"❚❚":"▶";
+  if(e)$("pBar").style.width=((e.page-it.a)+(e.i+1)/Math.max(1,e.n))/(it.b-it.a+1)*100+"%";
+  if("mediaSession" in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:nm,artist:"Lector en voz alta"});navigator.mediaSession.playbackState=P.playing?"playing":"paused"}catch(x){}}
+}
+const pageCache=new Map();
+async function addPage(g){
+  const it=pItem(),n=P.nextPage;
+  if(n>it.b){P.ended=true;return}
+  const key=it.bk+"|"+n+"|"+engine.cfg.espeak.voice;
+  let pc=pageCache.get(key);
+  if(!pc){
+    const {ch,stop}=await getChunks(it.bk,n,it.end);
+    let tail=null;
+    const last=ch[ch.length-1];
+    if(last&&!stop&&n<it.b&&!/[.?!:»”]$/.test(last.t)){
+      const nx=await getChunks(it.bk,n+1,it.end);
+      if(nx.ch.length)tail=nx.ch[0].t;
+    }
+    const texts=ch.map((c,i)=>{const t=(i===ch.length-1&&tail)?c.t+" "+tail:c.t;return speakable(t)||t});
+    const ids=ch.length?await phonemize(texts):[];
+    pc={ch,ids,stop,tail};pageCache.set(key,pc);
+  }
+  if(g!==P.gen)return;
+  const {ch,ids,stop,tail}=pc;
+  const skip0=P.skipFirstOf===n;
+  ch.forEach((c,i)=>{
+    if(skip0&&i===0)return;
+    let words=splitWords(c.t),split=words.length;
+    if(i===ch.length-1&&tail){words=words.concat(splitWords(tail))}
+    const wt=weights(words);let a=0;const cum=wt.map(x=>a+=x);
+    P.list.push({page:n,i,n:ch.length,t:(i===ch.length-1&&tail)?c.t+" "+tail:c.t,end:c.end,ids:ids[i],words,cum,split,off:0,at:0,until:0,dur:0});
+  });
+  P.skipFirstOf=tail?n+1:null;
+  P.nextPage=n+1;if(stop)P.ended=true;
+}
+function stopSources(){for(const s of P.srcs){try{s.onended=null;s.stop()}catch(x){}}P.srcs=[]}
+async function genLoop(g){
+  while(P.on&&g===P.gen){
+    if(P.gp>=P.list.length){
+      if(P.ended)return;
+      await addPage(g);continue;
+    }
+    if(P.nextAt-actx.currentTime>45){await new Promise(r=>setTimeout(r,400));continue}
+    const e=P.list[P.gp];
+    let pcm=null;try{pcm=await synth(e.ids,P.speed)}catch(x){pcm=null}
+    if(g!==P.gen)return;
+    const gap=e.end?(/[?!]$/.test(e.t)?.3:.24):.07;
+    if(pcm&&pcm.length){
+      const sr=engine.cfg.audio.sample_rate;
+      const buf=actx.createBuffer(1,pcm.length,sr);buf.copyToChannel(pcm,0);
+      const src=actx.createBufferSource();src.buffer=buf;src.connect(actx.destination);
+      const at=Math.max(P.nextAt,actx.currentTime+.06);
+      src.start(at);P.srcs.push(src);src.onended=()=>{P.srcs=P.srcs.filter(x=>x!==src)};
+      e.at=at;e.dur=buf.duration;e.until=at+buf.duration+gap;P.nextAt=e.until;
+      if(P.cur<0)P.cur=P.gp;
+    }else{e.at=e.until=Math.max(P.nextAt,actx.currentTime)}
+    P.gp++;
+  }
+}
+let ticker=null,lastSaved=-1;
+function audioTick(){
+  if(!P.on)return;
+  const t=actx.currentTime;
+  let i=P.cur<0?0:P.cur;
+  while(i<P.gp-1&&P.list[i].until<=t)i++;
+  if(P.gp&&i!==P.cur){P.cur=i}
+  const e=P.list[P.cur];
+  if(e&&e.at<=t+.05){
+    if($("pNow").dataset.i!==String(P.cur)){$("pNow").dataset.i=P.cur;setNow(e.t);paintPlayer();
+      highlight(false)}
+    if(P.cur!==lastSaved){lastSaved=P.cur;savePos()}
+  }
+  if(P.playing&&(!e||t>=e.until)&&P.gp<P.list.length+(P.ended?0:1)&&P.cur>=P.gp-1){setNow("Preparando la siguiente frase…");$("pNow").dataset.i=""}
+  if(P.ended&&P.gp>=P.list.length&&P.list.length&&t>=P.nextAt-.1&&P.playing){finish()}
+}
+function savePos(){
+  const e=P.list[P.cur];if(!e)return;
+  state.audio=state.audio||{};state.audio[pKey()]={page:e.page,idx:e.i};state.pos[P.day]=Object.assign(state.pos[P.day]||{},{page:e.page});persist();
+}
+function finish(){
+  P.playing=false;stopSources();try{au.pause()}catch(x){}
+  paintPlayer();setNow("Terminaste el documento. ¡Bien hecho!");
+  const it=pItem();state.audio=state.audio||{};state.audio[pKey()]={page:it.a,idx:0};persist();P.ended=false;P.on=false;
+}
+async function playFrom(page,idx,word){
+  P.gen++;const g=P.gen;stopSources();
+  P.list=[];P.gp=0;P.cur=-1;P.nextPage=page;P.ended=false;P.skipFirstOf=null;$("pNow").dataset.i="";
+  await actx.resume();P.nextAt=actx.currentTime+.1;
+  setNow("Preparando la página "+page+"…");
+  await addPage(g);if(g!==P.gen)return;
+  const skip=Math.min(idx||0,Math.max(0,P.list.length-1));
+  P.list.splice(0,skip);
+  const f0=P.list[0];
+  if(f0&&word>0&&word<f0.words.length){
+    const sub=f0.words.slice(word).join(" ");
+    try{const [ids]=await phonemize([speakable(sub)||sub]);if(g!==P.gen)return;f0.ids=ids}catch(x){}
+    const wt=weights(f0.words.slice(word));let a=0;f0.cum=wt.map(x=>a+=x);f0.off=word;f0.t=sub;
+  }
+  P.playing=true;au.src=silence();au.loop=true;au.play().catch(()=>{});paintPlayer();
+  genLoop(g);
+  setTimeout(()=>{if(g===P.gen&&engine.rtf>1.05&&P.playing)setNow("Tu celular genera la voz más lento de lo que la lee. Para menos pausas, elige la voz de hombre (es más ligera) o baja la velocidad.")},9000);
+}
+async function startAudio(day,item,page,idx,word){
+  if(!actx){const C=window.AudioContext||window.webkitAudioContext;actx=new C()}
+  await actx.resume().catch(()=>{});
+  P.on=true;P.day=day;P.item=item;
+  $("player").hidden=false;document.body.classList.add("playing");
+  $("pRate").value=state.audioRate||"1";$("pVoice").value=state.audioVoice||"es_MX-ald-medium";P.speed=+$("pRate").value;
+  paintPlayer();
+  try{await loadEngine($("pVoice").value)}catch(e){setNow("No se pudo descargar la voz. Revisa tu conexión a internet e intenta de nuevo.");P.playing=false;paintPlayer();return}
+  const saved=(state.audio||{})[day+"-"+item];
+  const it=pItem();
+  if(idx!==undefined)return playFrom(page,idx,word||0);
+  if(page&&!(saved&&saved.page===page))return playFrom(page,0);
+  const sp=(saved&&saved.page>=it.a&&saved.page<=it.b)?saved.page:(page||it.a);
+  playFrom(sp,saved&&saved.page===sp?saved.idx:0);
+}
+function curPos(){const e=P.list[Math.max(0,P.cur)];if(!e)return null;return {page:e.page,idx:e.i,e}}
+function togglePlay(){
+  if(!P.on)return;
+  if(P.playing){P.playing=false;actx.suspend();au.pause();savePos()}
+  else{P.playing=true;actx.resume();au.play().catch(()=>{})}
+  paintPlayer();
+}
+async function step(n){
+  if(!P.on)return;const p=curPos();if(!p)return;
+  let page=p.page,idx=p.idx+n;
+  if(idx<0){if(page>pItem().a){page--;const {text}=await pageText(pItem().bk,page,pItem().end);idx=Math.max(0,chunk(text).length-1)}else idx=0}
+  playFrom(page,idx);
+}
+function restartHere(){const p=curPos();if(p)playFrom(p.page,p.idx)}
+ticker=setInterval(()=>{if(actx)audioTick()},200);
+$("pPlay").addEventListener("click",togglePlay);
+$("pPrev").addEventListener("click",()=>step(-1));
+$("pNext").addEventListener("click",()=>step(1));
+$("pRate").addEventListener("change",()=>{P.speed=+$("pRate").value;state.audioRate=$("pRate").value;persist();if(P.on)restartHere()});
+$("pVoice").addEventListener("change",async()=>{state.audioVoice=$("pVoice").value;persist();if(!P.on)return;P.gen++;stopSources();
+  try{await loadEngine($("pVoice").value)}catch(e){setNow("No se pudo descargar esa voz. Revisa tu conexión.");return}
+  restartHere()});
+$("pStop").addEventListener("click",()=>{savePos();P.on=false;P.playing=false;P.gen++;stopSources();try{au.pause()}catch(x){}$("player").hidden=true;document.body.classList.remove("playing")});
+if("mediaSession" in navigator){try{
+  navigator.mediaSession.setActionHandler("play",()=>{if(!P.playing)togglePlay()});
+  navigator.mediaSession.setActionHandler("pause",()=>{if(P.playing)togglePlay()});
+  navigator.mediaSession.setActionHandler("nexttrack",()=>step(1));
+  navigator.mediaSession.setActionHandler("previoustrack",()=>step(-1));
+}catch(e){}}
+
+/* ---------- eventos ---------- */
+$("upFile").addEventListener("change",e=>{const f=[...e.target.files];e.target.value="";if(f.length)addFiles(f)});
+const drop=$("drop");
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",e=>{const f=[...(e.dataTransfer?.files||[])];if(f.length)addFiles(f)});
+$("libList").addEventListener("click",async e=>{
+  const o=e.target.closest("[data-open]");if(o){openDoc(o.dataset.open);return}
+  const d=e.target.closest("[data-del]");
+  if(d){const id=d.dataset.del;$("del-"+id).innerHTML=`<button class="btn sm" data-delok="${id}">Sí, borrar</button><button class="btn sm alt" data-delno="${id}">No</button>`;return}
+  const ok=e.target.closest("[data-delok]");
+  if(ok){const id=ok.dataset.delok;if(P.on&&P.day===id)$("pStop").click();try{await idbDel(id)}catch(x){}delete META[id];delete state.pos[id];delete state.marks[id];delete (state.audio||{})[id+"-0"];delete docs[id];saveMeta();persist();renderLib();return}
+  if(e.target.closest("[data-delno]"))renderLib();
+});
+$("back").addEventListener("click",closeDoc);
+$("pMark").addEventListener("click",()=>{const e=P.list[P.cur];if(!P.on||!e)return;const T=target(e);const prev=cur;cur=P.day;
+  const m=state.marks[cur]=state.marks[cur]||{};const a=m[T.page]=m[T.page]||[];const i=a.indexOf(T.k);if(i>=0)a.splice(i,1);else a.push(T.k);if(!a.length)delete m[T.page];
+  persist();cur=prev;refreshMarks();$("pMark").style.background=i>=0?"":"#ffd60a";setTimeout(()=>{$("pMark").style.background=""},700)});
+$("reader").addEventListener("click",e=>{
+  if(e.target.id==="listenBtn"){startAudio(cur,0,rPage);return}
+  if(e.target.closest("#markBtn")){markMode=!markMode;$("markBtn").setAttribute("aria-pressed",markMode);$("mkHint").hidden=!markMode;document.body.classList.toggle("marking",markMode);
+    $("phint").textContent=markMode?"Modo resaltar: toca una frase de la página para marcarla.":"Toca una palabra de la página para escuchar desde ahí.";
+    const h=document.querySelector(".tview .hint");if(h)h.textContent=markMode?"Modo resaltar activo.":"Toca cualquier palabra para escuchar desde ahí.";return}
+  if(e.target.closest("#dlPdf")){exportPdf();return}
+  if(e.target.closest("#dlTxt")){exportTxt();return}
+  if(markMode){
+    const w=e.target.closest(".tview .w");if(w){toggleMark(rPage,+w.dataset.k);return}
+    if(e.target.id==="ov"&&pdfView){const b=e.target.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;
+      let best=-1,bd=1e9;pdfView.rects.forEach((r,q)=>{if(!pdfView.rev.has(q))return;const dx=x<r.l?r.l-x:x>r.l+r.w?x-r.l-r.w:0,dy=y<r.t?r.t-y:y>r.t+r.h?y-r.t-r.h:0;const d=dx+dy*2;if(d<bd){bd=d;best=q}});
+      if(best>=0&&bd<30)toggleMark(rPage,pdfView.rev.get(best).k);return}
+  }
+  const vb=e.target.closest("[data-view]");
+  if(vb){view=vb.dataset.view;try{localStorage.setItem("vistaLectorVoz",view)}catch(x){}document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===view));hlS=hlW=null;pdfMark="";drawPage();return}
+  if(e.target.id==="ov"&&pdfView){
+    const b=e.target.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;
+    let best=-1,bd=1e9;pdfView.rects.forEach((r,q)=>{if(!pdfView.rev.has(q))return;const dx=x<r.l?r.l-x:x>r.l+r.w?x-r.l-r.w:0,dy=y<r.t?r.t-y:y>r.t+r.h?y-r.t-r.h:0;const d=dx+dy*2;if(d<bd){bd=d;best=q}});
+    if(best>=0&&bd<30){const {k,j}=pdfView.rev.get(best);
+      if(P.on&&P.day===cur){P.playing=true;playFrom(rPage,k,j)}else startAudio(cur,0,rPage,k,j)}
+    return}
+  const wd=e.target.closest(".tview .w");
+  if(wd){const k=+wd.dataset.k,j=+wd.dataset.j;
+    if(P.on&&P.day===cur){P.playing=true;playFrom(rPage,k,j)}else startAudio(cur,0,rPage,k,j);return}
+  const nb=e.target.closest("[data-nav]");if(nb){nav(+nb.dataset.nav);return}
+  const zb=e.target.closest("[data-zoom]");if(zb){zoom=Math.min(2.5,Math.max(1,zoom+(+zb.dataset.zoom)*0.25));if(view==="texto"){view="pdf";document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===view))}drawPage();return}
+});
+$("reader").addEventListener("change",e=>{if(e.target.id==="goPage"){const n=parseInt(e.target.value,10);const it=curItem();if(n>=it.a&&n<=it.b){rPage=n;drawPage()}e.target.value=""}});
+document.addEventListener("keydown",e=>{if(openItem===null||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;if(e.key==="ArrowRight")nav(1);if(e.key==="ArrowLeft")nav(-1);if(e.key===" "&&P.on){e.preventDefault();togglePlay()}});
+let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{if(openItem!==null&&$("cv"))drawPage()},250)});
+
+renderLib();
+const h=location.hash.slice(1);if(h&&META[h])openDoc(h);
+}
+
+</script>
+</body>
+</html>
