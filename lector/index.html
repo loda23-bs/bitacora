@@ -538,7 +538,12 @@ async function cachedFetch(url,onProg){
 }
 /* motor de voz en segundo plano (Web Worker): la página nunca se congela */
 const WORKER_SRC=`
-let session=null,cfg=null,ph=null,buf=null,q=Promise.resolve();
+let session=null,cfg=null,ph=null,buf=null,q=Promise.resolve(),wasmURL="",calls=0;
+async function mkPh(){
+  ph=await self.createPiperPhonemize({print:d=>{if(buf)buf.push(d)},printErr:()=>{},
+    locateFile:u=>u.endsWith(".wasm")?wasmURL+".wasm":u.endsWith(".data")?wasmURL+".data":u});
+  calls=0;
+}
 async function init(m){
   if(!self.ort){importScripts(m.ort+"ort.min.js")}
   ort.env.wasm.wasmPaths=m.ort;ort.env.wasm.numThreads=1;
@@ -546,15 +551,29 @@ async function init(m){
     const src=await (await fetch(m.piper)).text();
     importScripts(URL.createObjectURL(new Blob([src.replace("export var createPiperPhonemize","self.createPiperPhonemize")],{type:"text/javascript"})));
   }
-  if(!ph){ph=await self.createPiperPhonemize({print:d=>{if(buf)buf.push(d)},printErr:()=>{},
-    locateFile:u=>u.endsWith(".wasm")?m.wasm+".wasm":u.endsWith(".data")?m.wasm+".data":u})}
+  wasmURL=m.wasm;
+  if(!ph)await mkPh();
   cfg=m.cfg;session=null;session=await ort.InferenceSession.create(new Uint8Array(m.model));
   return {};
 }
-function phon(m){
-  buf=[];
-  try{ph.callMain(["-l",m.voice,"--input",JSON.stringify(m.texts.map(t=>({text:t}))),"--espeak_data","/espeak-ng-data"])}catch(e){}
+/* el fonemizador acumula memoria: se reinicia cada pocas llamadas y si deja de responder */
+function runPh(voice,texts){
+  buf=[];calls++;
+  try{ph.callMain(["-l",voice,"--input",JSON.stringify(texts.map(t=>({text:t}))),"--espeak_data","/espeak-ng-data"])}catch(e){}
   const ids=buf.map(d=>{try{return JSON.parse(d).phoneme_ids}catch(e){return []}});buf=null;
+  return ids;
+}
+const okIds=(ids,texts)=>ids.length===texts.length&&texts.every((t,i)=>!/[a-záéíóúñ]/i.test(t)||(ids[i]&&ids[i].length>2));
+async function phon(m){
+  if(calls>=6)await mkPh();
+  let ids=runPh(m.voice,m.texts);
+  if(!okIds(ids,m.texts)){
+    await mkPh();ids=runPh(m.voice,m.texts);
+    if(!okIds(ids,m.texts)){
+      ids=[];
+      for(const t of m.texts){let r=runPh(m.voice,[t]);if(!(r[0]&&r[0].length>2)){await mkPh();r=runPh(m.voice,[t.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9 .,;:¿?¡!]/g," ")])}ids.push(r[0]||[])}
+    }
+  }
   while(ids.length<m.texts.length)ids.push([]);
   return {ids};
 }
@@ -580,7 +599,7 @@ async function synth(m){
 self.onmessage=ev=>{const m=ev.data;
   q=q.then(async()=>{
     try{
-      const r=m.type==="init"?await init(m):m.type==="phon"?phon(m):await synth(m);
+      const r=m.type==="init"?await init(m):m.type==="phon"?await phon(m):await synth(m);
       postMessage(Object.assign({id:m.id,ok:true},r),r.pcm?[r.pcm.buffer]:[]);
     }catch(e){postMessage({id:m.id,ok:false,err:String(e&&e.message||e)})}
   });
@@ -715,6 +734,11 @@ async function genLoop(g){
     const e=P.list[P.gp];
     let pcm=null;try{pcm=await synth(e.ids,P.speed)}catch(x){pcm=null}
     if(g!==P.gen)return;
+    if(pcm&&pcm.length)P.fails=0;else if(/[a-záéíóúñ]{3}/i.test(e.t)&&++P.fails>=6){
+      P.playing=false;actx.suspend();try{au.pause()}catch(x){}paintPlayer();
+      setNow("La voz dejó de responder en la página "+e.page+". Toca ▶ para continuar desde ahí.");
+      P.on=true;P.retry={page:e.page,idx:e.i};P.gen++;return;
+    }
     const gap=e.end?(/[?!]$/.test(e.t)?.3:.24):.07;
     if(pcm&&pcm.length){
       const sr=engine.cfg.audio.sample_rate;
@@ -755,7 +779,7 @@ function finish(){
 }
 async function playFrom(page,idx,word){
   P.gen++;const g=P.gen;stopSources();
-  P.list=[];P.gp=0;P.cur=-1;P.nextPage=page;P.ended=false;P.skipFirstOf=null;$("pNow").dataset.i="";
+  P.list=[];P.gp=0;P.cur=-1;P.nextPage=page;P.ended=false;P.skipFirstOf=null;P.fails=0;P.retry=null;$("pNow").dataset.i="";
   await actx.resume();P.nextAt=actx.currentTime+.1;
   setNow("Preparando la página "+page+"…");
   await addPage(g);if(g!==P.gen)return;
@@ -790,6 +814,7 @@ function curPos(){const e=P.list[Math.max(0,P.cur)];if(!e)return null;return {pa
 function togglePlay(){
   if(!P.on)return;
   if(P.playing){P.playing=false;actx.suspend();au.pause();savePos()}
+  else if(P.retry){const r=P.retry;P.retry=null;P.fails=0;playFrom(r.page,r.idx)}
   else{P.playing=true;actx.resume();au.play().catch(()=>{})}
   paintPlayer();
 }
